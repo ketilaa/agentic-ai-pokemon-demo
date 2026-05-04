@@ -1,0 +1,20 @@
+{
+  "agents": {
+    "architect": {
+      "system": "agents/architect.md",
+      "context": ["specs/"]
+    },
+    "developer": {
+      "system": "agents/developer.md",
+      "context": ["specs/", "src/", "scripts/"]
+    },
+    "reviewer": {
+      "system": "agents/reviewer.md",
+      "context": ["specs/"]
+    },
+    "deploy": {
+      "system": "agents/deploy.md",
+      "context": [".github/workflows/"]
+    }
+  }
+}

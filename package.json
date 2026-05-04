@@ -1,0 +1,10 @@
+{
+  "name": "agentic-ai-pokemon-demo",
+  "version": "1.0.0",
+  "description": "A demo repository for experimenting with agentic, specification-driven development using Claude Code agents.",
+  "main": "index.js",
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs"
+}

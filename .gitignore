@@ -1,0 +1,14 @@
+# Node
+node_modules/
+.next/
+out/
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+
+# Logs
+npm-debug.log*
