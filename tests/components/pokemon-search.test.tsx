@@ -1,7 +1,7 @@
 /**
  * @jest-environment jsdom
  */
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { PokemonSearch } from '../../src/components/pokemon-search';
 
@@ -22,24 +22,26 @@ Object.defineProperty(window, 'matchMedia', {
 
 const OPTIONS = ['Bulbasaur', 'Ivysaur', 'Venusaur'];
 
-// AC-01: autocomplete input is present on the page
-// AC-02: autocomplete is bound to the list of English Pokémon names
-
 describe('PokemonSearch', () => {
+  // AC-01: autocomplete input is present at the top of the page
   it('AC-01: renders an autocomplete combobox input', () => {
     render(<PokemonSearch options={OPTIONS} onSelect={jest.fn()} />);
     expect(screen.getByRole('combobox')).toBeInTheDocument();
   });
 
-  it('AC-02: accepts the Pokémon names list as options', () => {
-    render(<PokemonSearch options={OPTIONS} onSelect={jest.fn()} />);
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
-  });
-
-  it('calls onSelect with null when the input is cleared', () => {
+  // Clears the selected value and calls onSelect(null) when the MUI clear button is clicked
+  it('calls onSelect(null) when the selection is cleared', () => {
     const onSelect = jest.fn();
     render(<PokemonSearch options={OPTIONS} onSelect={onSelect} />);
-    // The combobox renders; selection is exercised at the explorer level
-    expect(screen.getByRole('combobox')).toBeInTheDocument();
+
+    // open dropdown and select an option
+    fireEvent.click(screen.getByRole('combobox'));
+    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'Bulb' } });
+    fireEvent.click(screen.getByRole('option', { name: 'Bulbasaur' }));
+    expect(onSelect).toHaveBeenCalledWith('Bulbasaur');
+
+    // click the MUI clear button (aria-label="Clear", appears after a value is selected)
+    fireEvent.click(screen.getByLabelText('Clear'));
+    expect(onSelect).toHaveBeenCalledWith(null);
   });
 });
