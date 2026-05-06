@@ -1,1 +1,82 @@
-# Implemented by Deploy agent
+name: Build and Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+# Minimal workflow-level permission. The deploy job overrides with what Pages requires.
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run tests
+        run: npm test
+
+  build:
+    name: Build
+    needs: test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      # Fetches pokemon data from the upstream API and writes public/data/pokemon.json.
+      # The Next.js build reads this file at build time. If this step fails,
+      # the workflow fails here — no fallback, per spec §3.1.
+      - name: Fetch Pokémon data
+        run: npm run fetch-pokemon
+
+      # NEXT_BASE_PATH sets the Next.js basePath so that /_next/... asset paths
+      # resolve correctly under the GitHub Pages project-site prefix.
+      - name: Build static site
+        run: npx next build
+        env:
+          NEXT_BASE_PATH: /agentic-ai-pokemon-demo
+
+      # Packages the out/ directory as a Pages artifact for the deploy job.
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: out/
+
+  deploy:
+    name: Deploy
+    needs: build
+    runs-on: ubuntu-latest
+    # pages:write and id-token:write are required by actions/deploy-pages (OIDC, no stored secrets).
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
