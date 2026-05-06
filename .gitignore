@@ -13,5 +13,4 @@ out/
 # Logs
 npm-debug.log*
 
-# Generated build-time data
-public/data/
+public/data

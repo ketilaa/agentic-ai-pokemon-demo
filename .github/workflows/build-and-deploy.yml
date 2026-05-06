@@ -1,6 +1,6 @@
 name: Build and Deploy to GitHub Pages
 
-on:
+"on":
   push:
     branches:
       - main
@@ -46,7 +46,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      # Fetches pokemon data from the upstream API and writes public/data/pokemon.json.
+      # Fetches Pokémon data from the upstream API and writes public/data/pokemon.json.
       # The Next.js build reads this file at build time. If this step fails,
       # the workflow fails here — no fallback, per spec §3.1.
       - name: Fetch Pokémon data
