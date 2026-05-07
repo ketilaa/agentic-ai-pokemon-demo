@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import { AppRouterCacheProvider } from '@mui/material-nextjs/v14-appRouter';
 
 export const metadata: Metadata = {
   title: 'Pokémon GO Pokédex',
@@ -7,7 +8,9 @@ export const metadata: Metadata = {
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppRouterCacheProvider>{children}</AppRouterCacheProvider>
+      </body>
     </html>
   );
 }
