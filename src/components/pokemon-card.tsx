@@ -26,6 +26,7 @@ export function PokemonCard({ name, primaryType, secondaryType }: Props) {
       data-testid="pokemon-card"
       data-primary-color={primaryType.color}
       data-secondary-color={secondaryType?.color ?? ''}
+      data-background={background}
       sx={{ background }}
     >
       <CardContent>

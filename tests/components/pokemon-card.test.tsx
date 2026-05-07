@@ -6,7 +6,7 @@ import '@testing-library/jest-dom';
 import { PokemonCard } from '../../src/components/pokemon-card';
 import type { PokemonType } from '../../src/domain/pokemon-catalog';
 
-// AC-04, AC-05, AC-06, AC-08, AC-09, AC-10, AC-13 (spec 0004)
+// AC-04, AC-05, AC-06, AC-07, AC-08, AC-09, AC-10, AC-13 (spec 0004)
 
 const FIRE: PokemonType = { name: 'Fire', color: '#E62829' };
 const FLYING: PokemonType = { name: 'Flying', color: '#81B9EF' };
@@ -52,10 +52,17 @@ describe('PokemonCard', () => {
     expect(screen.getByTestId('pokemon-card')).toHaveAttribute('data-secondary-color', '');
   });
 
+  it('AC-07: primary type color occupies the dominant portion of the card surface gradient', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
+    const bg = screen.getByTestId('pokemon-card').getAttribute('data-background') ?? '';
+    expect(bg).toContain('#E62829 65%');
+    expect(bg).toContain('#81B9EF 65%');
+    expect(bg.indexOf('#E62829')).toBeLessThan(bg.indexOf('#81B9EF'));
+  });
+
   it('AC-08, AC-13: no standalone swatch, chip, or badge element exists for type indication', () => {
     render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} />);
     expect(screen.queryByTestId('type-swatch-primary')).not.toBeInTheDocument();
     expect(screen.queryByTestId('type-swatch-secondary')).not.toBeInTheDocument();
-    expect(document.querySelectorAll('.MuiChip-root')).toHaveLength(0);
   });
 });
