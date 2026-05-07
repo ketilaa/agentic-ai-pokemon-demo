@@ -1,6 +1,6 @@
 # Spec 0002 – Pokémon Autocomplete: Search and Card Display
 
-**Status:** Active  
+**Status:** Complete  
 **Iteration:** 2  
 **Author:** Architect agent  
 **Date:** 2026-05-06

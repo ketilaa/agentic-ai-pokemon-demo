@@ -1,6 +1,6 @@
 # Spec 0003 – Pokémon Type Display on Card
 
-**Status:** Active  
+**Status:** Complete  
 **Iteration:** 3  
 **Author:** Architect agent  
 **Date:** 2026-05-07

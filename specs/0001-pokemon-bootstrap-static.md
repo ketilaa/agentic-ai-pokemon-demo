@@ -1,6 +1,6 @@
 # Spec 0001 – Pokémon Bootstrap: Static Next.js App on GitHub Pages
 
-**Status:** Active  
+**Status:** Complete  
 **Iteration:** 1  
 **Author:** Architect agent  
 **Date:** 2026-05-06

@@ -1,6 +1,6 @@
 # Spec 0004 – Pokémon Type Color Theme
 
-**Status:** Active  
+**Status:** Complete  
 **Iteration:** 4  
 **Author:** Architect agent  
 **Date:** 2026-05-07
