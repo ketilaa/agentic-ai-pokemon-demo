@@ -1,9 +1,51 @@
-import { parsePokemonData } from '../../src/domain/pokemon-catalog';
+import { parsePokemonData, TYPE_COLORS } from '../../src/domain/pokemon-catalog';
 
 const makeEntry = (english: string, primary: string, secondary?: string) => ({
   names: { English: english },
   primaryType: { names: { English: primary } },
   secondaryType: secondary ? { names: { English: secondary } } : null,
+});
+
+const STANDARD_TYPES = [
+  'Bug', 'Dark', 'Dragon', 'Electric', 'Fairy', 'Fighting',
+  'Fire', 'Flying', 'Ghost', 'Grass', 'Ground', 'Ice',
+  'Normal', 'Poison', 'Psychic', 'Rock', 'Steel', 'Water',
+];
+
+describe('TYPE_COLORS - centralized theme (spec 0004 AC-01, AC-02, AC-03)', () => {
+  it('AC-01: defines all 18 standard Pokémon types', () => {
+    expect(Object.keys(TYPE_COLORS)).toHaveLength(18);
+    STANDARD_TYPES.forEach((type) => {
+      expect(TYPE_COLORS).toHaveProperty(type);
+    });
+  });
+
+  it('AC-03: each type maps to a valid hex color string', () => {
+    Object.values(TYPE_COLORS).forEach((color) => {
+      expect(color).toMatch(/^#[0-9A-Fa-f]{6}$/);
+    });
+  });
+
+  it('AC-03: type colors match Pokémon GO conventions', () => {
+    expect(TYPE_COLORS.Bug).toBe('#91A119');
+    expect(TYPE_COLORS.Dark).toBe('#624D4E');
+    expect(TYPE_COLORS.Dragon).toBe('#5060E1');
+    expect(TYPE_COLORS.Electric).toBe('#FAC000');
+    expect(TYPE_COLORS.Fairy).toBe('#EF70EF');
+    expect(TYPE_COLORS.Fighting).toBe('#FF8000');
+    expect(TYPE_COLORS.Fire).toBe('#E62829');
+    expect(TYPE_COLORS.Flying).toBe('#81B9EF');
+    expect(TYPE_COLORS.Ghost).toBe('#704170');
+    expect(TYPE_COLORS.Grass).toBe('#3FA129');
+    expect(TYPE_COLORS.Ground).toBe('#915121');
+    expect(TYPE_COLORS.Ice).toBe('#3DCEF3');
+    expect(TYPE_COLORS.Normal).toBe('#9FA19F');
+    expect(TYPE_COLORS.Poison).toBe('#9141CB');
+    expect(TYPE_COLORS.Psychic).toBe('#EF4179');
+    expect(TYPE_COLORS.Rock).toBe('#AFA981');
+    expect(TYPE_COLORS.Steel).toBe('#60A1B8');
+    expect(TYPE_COLORS.Water).toBe('#2980EF');
+  });
 });
 
 describe('parsePokemonData - names', () => {

@@ -40,11 +40,12 @@ describe('PokemonExplorer', () => {
     expect(screen.getByText('Bulbasaur')).toBeInTheDocument();
   });
 
-  it('AC-02: shows type indicators for the selected Pokémon', () => {
+  it('AC-05/AC-06: card surface carries type colors for the selected Pokémon', () => {
     render(<PokemonExplorer entries={ENTRIES} />);
     fireEvent.change(screen.getByTestId('mock-search'), { target: { value: 'Bulbasaur' } });
-    expect(screen.getByText('Grass')).toBeInTheDocument();
-    expect(screen.getByText('Poison')).toBeInTheDocument();
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-primary-color', '#3FA129');
+    expect(card).toHaveAttribute('data-secondary-color', '#9141CB');
   });
 
   it('AC-06: card updates when a different Pokémon is selected', () => {

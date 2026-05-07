@@ -1,7 +1,5 @@
-import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import type { PokemonType } from '@/domain/pokemon-catalog';
 
@@ -18,25 +16,23 @@ function textColor(hex: string): string {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#212121' : '#ffffff';
 }
 
-function TypeChip({ type }: { type: PokemonType }) {
-  return (
-    <Chip
-      label={type.name}
-      size="small"
-      sx={{ backgroundColor: type.color, color: textColor(type.color) }}
-    />
-  );
-}
-
 export function PokemonCard({ name, primaryType, secondaryType }: Props) {
+  const background = secondaryType
+    ? `linear-gradient(135deg, ${primaryType.color} 65%, ${secondaryType.color} 65%)`
+    : primaryType.color;
+
   return (
-    <Card>
+    <Card
+      data-testid="pokemon-card"
+      data-primary-color={primaryType.color}
+      data-secondary-color={secondaryType?.color ?? ''}
+      data-background={background}
+      sx={{ background }}
+    >
       <CardContent>
-        <Typography variant="h6">{name}</Typography>
-        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-          <TypeChip type={primaryType} />
-          {secondaryType && <TypeChip type={secondaryType} />}
-        </Box>
+        <Typography variant="h6" sx={{ color: textColor(primaryType.color) }}>
+          {name}
+        </Typography>
       </CardContent>
     </Card>
   );
