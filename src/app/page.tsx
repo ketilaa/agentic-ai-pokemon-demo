@@ -12,7 +12,7 @@ export default function HomePage() {
   const catalog = parsePokemonData(raw);
   return (
     <main>
-      <PokemonExplorer names={catalog.names} />
+      <PokemonExplorer entries={catalog.entries} />
       <PokemonCountDisplay count={catalog.count} />
     </main>
   );
