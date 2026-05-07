@@ -1,6 +1,6 @@
 # Spec 0005 – Pokémon Strength Profile and Card Layout Refinement
 
-**Status:** Active  
+**Status:** Complete  
 **Iteration:** 5  
 **Author:** Architect agent  
 **Date:** 2026-05-07
