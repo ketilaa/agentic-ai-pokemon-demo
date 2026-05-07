@@ -26,6 +26,7 @@ export function PokemonExplorer({ entries }: Props) {
             name={selectedEntry.name}
             primaryType={selectedEntry.primaryType}
             secondaryType={selectedEntry.secondaryType}
+            stats={selectedEntry.stats}
           />
         </Box>
       )}

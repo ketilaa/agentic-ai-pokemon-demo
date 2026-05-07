@@ -1,9 +1,12 @@
 import { parsePokemonData, TYPE_COLORS } from '../../src/domain/pokemon-catalog';
 
-const makeEntry = (english: string, primary: string, secondary?: string) => ({
+const DEFAULT_STATS = { attack: 100, defense: 100, stamina: 100 };
+
+const makeEntry = (english: string, primary: string, secondary?: string, stats = DEFAULT_STATS) => ({
   names: { English: english },
   primaryType: { names: { English: primary } },
   secondaryType: secondary ? { names: { English: secondary } } : null,
+  stats,
 });
 
 const STANDARD_TYPES = [
@@ -45,6 +48,34 @@ describe('TYPE_COLORS - centralized theme (spec 0004 AC-01, AC-02, AC-03)', () =
     expect(TYPE_COLORS.Rock).toBe('#AFA981');
     expect(TYPE_COLORS.Steel).toBe('#60A1B8');
     expect(TYPE_COLORS.Water).toBe('#2980EF');
+  });
+});
+
+describe('parsePokemonData - stats (spec 0005 AC-01)', () => {
+  it('AC-01: exposes attack, defense, and stamina as numeric values on each entry', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison', { attack: 118, defense: 111, stamina: 128 })];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].stats.attack).toBe(118);
+    expect(entries[0].stats.defense).toBe(111);
+    expect(entries[0].stats.stamina).toBe(128);
+  });
+
+  it('AC-01: all three stat fields are present and numeric', () => {
+    const raw = [makeEntry('Charmander', 'Fire', undefined, { attack: 116, defense: 93, stamina: 118 })];
+    const { entries } = parsePokemonData(raw);
+    expect(typeof entries[0].stats.attack).toBe('number');
+    expect(typeof entries[0].stats.defense).toBe('number');
+    expect(typeof entries[0].stats.stamina).toBe('number');
+  });
+
+  it('skips entries with missing stats', () => {
+    const raw = [
+      makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      { names: { English: 'Mystery' }, primaryType: { names: { English: 'Normal' } }, secondaryType: null },
+    ];
+    const { entries } = parsePokemonData(raw);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe('Bulbasaur');
   });
 });
 
