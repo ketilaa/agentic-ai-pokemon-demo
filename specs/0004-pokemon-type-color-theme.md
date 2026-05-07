@@ -30,21 +30,21 @@ Iteration 3 added type indicators to the Pokémon card, using color as the prima
 ### 3.2 Visual communication of type on the card
 
 - The Pokémon card must communicate type identity through color alone.
-- No type name, label, abbreviation, or code (e.g. "Fire", "Water", "F", "1") is displayed on or within any type indicator.
+- No type name, label, abbreviation, or code (e.g. "Fire", "Water", "F", "1") is displayed anywhere on the card.
 - No explanatory legends, badges, chips, or annotations are added to the card or page solely to explain the meaning of colors.
 - Primary type must be visually dominant relative to the secondary type.
 - Secondary type, when present, must be visually distinguishable from the primary type without the use of text.
 
 ### 3.3 Single- and dual-type layout
 
-- When a Pokémon has only a primary type, the card presents a single color indicator for that type.
-- When a Pokémon has both a primary and a secondary type, the card presents two color indicators: one dominant indicator for the primary type and one subordinate indicator for the secondary type.
-- The visual hierarchy between primary and secondary indicators must be perceivable at a glance on a 375 px wide viewport.
+- When a Pokémon has only a primary type, the card's surface reflects the primary type color.
+- When a Pokémon has both a primary and a secondary type, the card's surface communicates both types through a split treatment: a dominant portion for the primary type and a subordinate portion for the secondary type.
+- The visual hierarchy between primary and secondary surface treatments must be perceivable at a glance on a 375 px wide viewport.
 
 ### 3.4 Card structure
 
 - The card continues to display the Pokémon's name as established in previous iterations.
-- The type indicators introduced in Iteration 3 remain on the card; this iteration refines their presentation by removing textual type labels and applying theme-derived colors.
+- This iteration supersedes the type indicators introduced in Iteration 3, replacing them with a surface-based treatment: type identity is communicated through the card's own background rather than through added elements.
 - No other new data fields (images, stats, descriptions) are introduced.
 
 ### 3.5 Data sourcing
@@ -63,9 +63,9 @@ Iteration 3 added type indicators to the Pokémon card, using color as the prima
 - **Pokémon GO color conventions.** The color assigned to each type must match established Pokémon GO type colors. No arbitrary or custom palette is used.
 - **Color as sole type signal.** Type identity must be conveyed exclusively through color. Type names, abbreviations, or any textual type identifiers must not appear on the card.
 - **No explanatory UI.** No legends, tooltips, badges, chips, or annotations are added solely to explain the meaning of type colors.
-- **Visual dominance of primary type.** The primary type indicator must be visually dominant relative to the secondary type indicator.
-- **Readability preserved.** Color usage must remain subtle enough that the Pokémon's name and other card content remain clearly legible.
-- **Default component styling preserved.** Existing component styling must not be unnecessarily altered. Changes are limited to what is required to apply theme-derived type colors and to remove textual type labels.
+- **Visual dominance of primary type.** The primary type's surface treatment must be visually dominant relative to the secondary type's surface treatment.
+- **Readability preserved.** When type color is applied to the card surface, text content must remain clearly legible. The text color must be chosen to maintain sufficient contrast against the card's surface color.
+- **Card surface treatment.** The card container's background must be modified to carry type color. All other component styling must not be unnecessarily altered beyond what is required for this surface treatment.
 - **MUI only.** All UI components must come from the Material UI library. No other component libraries are introduced.
 - **In-memory state only.** No selection or preference is persisted.
 - **No new infrastructure or cost.** Deployment pipeline, hosting, and data sources remain unchanged.
@@ -117,8 +117,8 @@ The following criteria must all pass before this iteration is considered complet
 ## 7. Risks
 
 - **Loss of type legibility without text.** Removing type name text increases reliance on color alone. Users unfamiliar with Pokémon GO type colors may not immediately recognize a type. This risk is accepted per the design intent; the non-verbal communication requirement is explicit.
-- **Color contrast on white backgrounds.** Some Pokémon GO type colors (e.g. Normal, Ice) are light. Indicators must remain visually distinct against the card background; if a theme color provides insufficient contrast, the indicator's presentation should ensure it remains perceivable without introducing text labels.
-- **Primary/secondary visual hierarchy.** Achieving a clear visual dominance relationship between two color indicators using default MUI component styling may be constrained. The implementation must produce a perceptible hierarchy within those constraints.
+- **Text contrast against type-colored surface.** Some Pokémon GO type colors (e.g. Normal, Ice, Electric) are light. When the card surface carries a light type color, dark text must be used to preserve legibility. The implementation must derive the appropriate text color from the surface color rather than assuming a fixed foreground.
+- **Primary/secondary visual hierarchy.** The split between primary and secondary surface treatments must be sufficiently pronounced to be immediately perceivable at a glance without relying on text to distinguish them.
 
 ---
 
