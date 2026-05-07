@@ -1,12 +1,13 @@
+import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
-import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
-import type { PokemonType } from '@/domain/pokemon-catalog';
+import type { PokemonStats, PokemonType } from '@/domain/pokemon-catalog';
 
 interface Props {
   name: string;
   primaryType: PokemonType;
   secondaryType: PokemonType | null;
+  stats: PokemonStats;
 }
 
 function textColor(hex: string): string {
@@ -16,24 +17,63 @@ function textColor(hex: string): string {
   return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#212121' : '#ffffff';
 }
 
-export function PokemonCard({ name, primaryType, secondaryType }: Props) {
+function StrengthProfile({ stats }: { stats: PokemonStats }) {
+  const max = Math.max(stats.attack, stats.defense, stats.stamina);
+  const bars = [
+    { label: 'ATK', value: stats.attack, testId: 'stat-bar-atk' },
+    { label: 'DEF', value: stats.defense, testId: 'stat-bar-def' },
+    { label: 'STA', value: stats.stamina, testId: 'stat-bar-sta' },
+  ];
+
+  return (
+    <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
+      {bars.map(({ label, value, testId }) => (
+        <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+          <Typography
+            variant="caption"
+            sx={{ width: 28, color: 'text.secondary', flexShrink: 0, fontSize: '0.65rem' }}
+          >
+            {label}
+          </Typography>
+          <Box sx={{ flex: 1, bgcolor: 'rgba(0,0,0,0.06)', borderRadius: '4px', overflow: 'hidden' }}>
+            <Box
+              data-testid={testId}
+              data-stat-value={value}
+              sx={{
+                width: `${(value / max) * 100}%`,
+                height: 6,
+                bgcolor: 'rgba(0,0,0,0.35)',
+                borderRadius: '4px',
+              }}
+            />
+          </Box>
+        </Box>
+      ))}
+    </Box>
+  );
+}
+
+export function PokemonCard({ name, primaryType, secondaryType, stats }: Props) {
   const background = secondaryType
     ? `linear-gradient(135deg, ${primaryType.color} 65%, ${secondaryType.color} 65%)`
     : primaryType.color;
 
   return (
-    <Card
-      data-testid="pokemon-card"
-      data-primary-color={primaryType.color}
-      data-secondary-color={secondaryType?.color ?? ''}
-      data-background={background}
-      sx={{ background }}
-    >
-      <CardContent>
+    <Card data-testid="pokemon-card" sx={{ overflow: 'hidden' }}>
+      <Box
+        data-testid="card-title-section"
+        data-primary-color={primaryType.color}
+        data-secondary-color={secondaryType?.color ?? ''}
+        data-background={background}
+        sx={{ background, px: 2, py: 1.5 }}
+      >
         <Typography variant="h6" sx={{ color: textColor(primaryType.color) }}>
           {name}
         </Typography>
-      </CardContent>
+      </Box>
+      <Box data-testid="card-content-section" sx={{ px: 2, py: 1.5 }}>
+        <StrengthProfile stats={stats} />
+      </Box>
     </Card>
   );
 }

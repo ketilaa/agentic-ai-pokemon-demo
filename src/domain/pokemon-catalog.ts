@@ -3,10 +3,17 @@ export interface PokemonType {
   readonly color: string;
 }
 
+export interface PokemonStats {
+  readonly attack: number;
+  readonly defense: number;
+  readonly stamina: number;
+}
+
 export interface PokemonEntry {
   readonly name: string;
   readonly primaryType: PokemonType;
   readonly secondaryType: PokemonType | null;
+  readonly stats: PokemonStats;
 }
 
 export interface PokemonCatalog {
@@ -49,6 +56,15 @@ function extractEnglishName(entry: unknown): string | null {
   return typeof english === 'string' && english.length > 0 ? english : null;
 }
 
+function extractStats(item: unknown): PokemonStats | null {
+  if (typeof item !== 'object' || item === null) return null;
+  const s = (item as Record<string, unknown>).stats;
+  if (typeof s !== 'object' || s === null) return null;
+  const { attack, defense, stamina } = s as Record<string, unknown>;
+  if (typeof attack !== 'number' || typeof defense !== 'number' || typeof stamina !== 'number') return null;
+  return { attack, defense, stamina };
+}
+
 function extractTypeName(typeField: unknown): string | null {
   if (typeof typeField !== 'object' || typeField === null) return null;
   const namesField = (typeField as Record<string, unknown>).names;
@@ -79,10 +95,14 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
 
     const secondaryTypeName = extractTypeName((item as Record<string, unknown>).secondaryType);
 
+    const stats = extractStats(item);
+    if (!stats) continue;
+
     entries.push({
       name,
       primaryType: toType(primaryTypeName),
       secondaryType: secondaryTypeName ? toType(secondaryTypeName) : null,
+      stats,
     });
   }
 
