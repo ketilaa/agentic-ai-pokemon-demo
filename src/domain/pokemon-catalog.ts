@@ -15,8 +15,8 @@ export interface PokemonCatalog {
   readonly entries: readonly PokemonEntry[];
 }
 
-// Pokémon GO type colour conventions
-const TYPE_COLORS: Record<string, string> = {
+// Pokémon GO type colour conventions — authoritative source for all type colors (spec 0004)
+export const TYPE_COLORS: Record<string, string> = {
   Bug: '#91A119',
   Dark: '#624D4E',
   Dragon: '#5060E1',

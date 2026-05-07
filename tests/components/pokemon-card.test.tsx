@@ -6,31 +6,38 @@ import '@testing-library/jest-dom';
 import { PokemonCard } from '../../src/components/pokemon-card';
 import type { PokemonType } from '../../src/domain/pokemon-catalog';
 
-// AC-01, AC-02, AC-03, AC-04, AC-05 (spec 0003)
+// AC-04, AC-05, AC-06, AC-07, AC-08, AC-10 (spec 0004)
 
 const FIRE: PokemonType = { name: 'Fire', color: '#E62829' };
 const FLYING: PokemonType = { name: 'Flying', color: '#81B9EF' };
 const GRASS: PokemonType = { name: 'Grass', color: '#3FA129' };
+const POISON: PokemonType = { name: 'Poison', color: '#9141CB' };
 
 describe('PokemonCard', () => {
-  it('AC-05: renders the Pokémon name', () => {
+  it('AC-08: renders the Pokémon name', () => {
     render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
     expect(screen.getByText('Charizard')).toBeInTheDocument();
   });
 
-  it('AC-01: shows exactly one type indicator for a single-type Pokémon', () => {
+  it('AC-05: shows exactly one type swatch for a single-type Pokémon', () => {
     render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} />);
-    expect(screen.getByText('Fire')).toBeInTheDocument();
+    expect(screen.getByTestId('type-swatch-primary')).toBeInTheDocument();
+    expect(screen.queryByTestId('type-swatch-secondary')).not.toBeInTheDocument();
+  });
+
+  it('AC-06: shows two type swatches for a dual-type Pokémon', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
+    expect(screen.getByTestId('type-swatch-primary')).toBeInTheDocument();
+    expect(screen.getByTestId('type-swatch-secondary')).toBeInTheDocument();
+  });
+
+  it('AC-04: no type name appears on the card', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
+    expect(screen.queryByText('Fire')).not.toBeInTheDocument();
     expect(screen.queryByText('Flying')).not.toBeInTheDocument();
   });
 
-  it('AC-02: shows two type indicators for a dual-type Pokémon', () => {
-    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
-    expect(screen.getByText('Fire')).toBeInTheDocument();
-    expect(screen.getByText('Flying')).toBeInTheDocument();
-  });
-
-  it('AC-03: does not render label text like "Primary type" or "Secondary type"', () => {
+  it('AC-04: no label text like "Primary type", "Secondary type", "Type 1", "Type 2"', () => {
     render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
     expect(screen.queryByText(/primary\s*type/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/secondary\s*type/i)).not.toBeInTheDocument();
@@ -38,15 +45,19 @@ describe('PokemonCard', () => {
     expect(screen.queryByText(/type\s*2/i)).not.toBeInTheDocument();
   });
 
-  it('AC-04: type name is visible as text within each indicator', () => {
-    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={{ name: 'Poison', color: '#9141CB' }} />);
-    expect(screen.getByText('Grass')).toBeInTheDocument();
-    expect(screen.getByText('Poison')).toBeInTheDocument();
+  it('AC-07: primary swatch is larger than secondary swatch', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} />);
+    expect(screen.getByTestId('type-swatch-primary')).toHaveStyle({ width: '32px', height: '32px' });
+    expect(screen.getByTestId('type-swatch-secondary')).toHaveStyle({ width: '20px', height: '20px' });
   });
 
-  it('applies the type colour to the chip background', () => {
+  it('applies the primary type colour to the primary swatch', () => {
     render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} />);
-    const chip = screen.getByText('Fire').closest('.MuiChip-root');
-    expect(chip).toHaveStyle({ backgroundColor: '#E62829' });
+    expect(screen.getByTestId('type-swatch-primary')).toHaveStyle({ backgroundColor: '#E62829' });
+  });
+
+  it('applies the secondary type colour to the secondary swatch', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} />);
+    expect(screen.getByTestId('type-swatch-secondary')).toHaveStyle({ backgroundColor: '#9141CB' });
   });
 });

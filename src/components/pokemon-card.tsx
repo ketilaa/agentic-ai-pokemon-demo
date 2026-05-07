@@ -1,7 +1,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
-import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import type { PokemonType } from '@/domain/pokemon-catalog';
 
@@ -11,19 +10,18 @@ interface Props {
   secondaryType: PokemonType | null;
 }
 
-function textColor(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#212121' : '#ffffff';
-}
-
-function TypeChip({ type }: { type: PokemonType }) {
+function TypeSwatch({ color, variant }: { color: string; variant: 'primary' | 'secondary' }) {
   return (
-    <Chip
-      label={type.name}
-      size="small"
-      sx={{ backgroundColor: type.color, color: textColor(type.color) }}
+    <Box
+      data-testid={`type-swatch-${variant}`}
+      sx={{
+        width: variant === 'primary' ? '32px' : '20px',
+        height: variant === 'primary' ? '32px' : '20px',
+        borderRadius: '50%',
+        backgroundColor: color,
+        border: '2px solid rgba(0,0,0,0.12)',
+        flexShrink: 0,
+      }}
     />
   );
 }
@@ -33,9 +31,9 @@ export function PokemonCard({ name, primaryType, secondaryType }: Props) {
     <Card>
       <CardContent>
         <Typography variant="h6">{name}</Typography>
-        <Box sx={{ display: 'flex', gap: 1, mt: 1 }}>
-          <TypeChip type={primaryType} />
-          {secondaryType && <TypeChip type={secondaryType} />}
+        <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
+          <TypeSwatch color={primaryType.color} variant="primary" />
+          {secondaryType && <TypeSwatch color={secondaryType.color} variant="secondary" />}
         </Box>
       </CardContent>
     </Card>
