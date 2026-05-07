@@ -1,4 +1,3 @@
-import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import CardContent from '@mui/material/CardContent';
 import Typography from '@mui/material/Typography';
@@ -10,31 +9,29 @@ interface Props {
   secondaryType: PokemonType | null;
 }
 
-function TypeSwatch({ color, variant }: { color: string; variant: 'primary' | 'secondary' }) {
-  return (
-    <Box
-      data-testid={`type-swatch-${variant}`}
-      sx={{
-        width: variant === 'primary' ? '32px' : '20px',
-        height: variant === 'primary' ? '32px' : '20px',
-        borderRadius: '50%',
-        backgroundColor: color,
-        border: '2px solid rgba(0,0,0,0.12)',
-        flexShrink: 0,
-      }}
-    />
-  );
+function textColor(hex: string): string {
+  const r = parseInt(hex.slice(1, 3), 16);
+  const g = parseInt(hex.slice(3, 5), 16);
+  const b = parseInt(hex.slice(5, 7), 16);
+  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#212121' : '#ffffff';
 }
 
 export function PokemonCard({ name, primaryType, secondaryType }: Props) {
+  const background = secondaryType
+    ? `linear-gradient(135deg, ${primaryType.color} 65%, ${secondaryType.color} 65%)`
+    : primaryType.color;
+
   return (
-    <Card>
+    <Card
+      data-testid="pokemon-card"
+      data-primary-color={primaryType.color}
+      data-secondary-color={secondaryType?.color ?? ''}
+      sx={{ background }}
+    >
       <CardContent>
-        <Typography variant="h6">{name}</Typography>
-        <Box sx={{ display: 'flex', gap: 1, mt: 1, alignItems: 'center' }}>
-          <TypeSwatch color={primaryType.color} variant="primary" />
-          {secondaryType && <TypeSwatch color={secondaryType.color} variant="secondary" />}
-        </Box>
+        <Typography variant="h6" sx={{ color: textColor(primaryType.color) }}>
+          {name}
+        </Typography>
       </CardContent>
     </Card>
   );
