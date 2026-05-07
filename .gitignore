@@ -13,4 +13,4 @@ out/
 # Logs
 npm-debug.log*
 
-public/data
+public/data/*

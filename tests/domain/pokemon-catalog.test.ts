@@ -1,13 +1,16 @@
 import { parsePokemonData } from '../../src/domain/pokemon-catalog';
 
-// AC-01: data file contains Pokémon entries (validates the shape expected from the API)
-// AC-04: count is derived correctly from the fetched data
+const makeEntry = (english: string, primary: string, secondary?: string) => ({
+  names: { English: english },
+  primaryType: { names: { English: primary } },
+  secondaryType: secondary ? { names: { English: secondary } } : null,
+});
 
-describe('parsePokemonData - names (AC-02)', () => {
+describe('parsePokemonData - names', () => {
   it('extracts English names from each entry', () => {
     const raw = [
-      { id: 'BULBASAUR', names: { English: 'Bulbasaur', German: 'Bisasam' } },
-      { id: 'IVYSAUR', names: { English: 'Ivysaur', German: 'Bisaknosp' } },
+      makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      makeEntry('Ivysaur', 'Grass', 'Poison'),
     ];
     const catalog = parsePokemonData(raw);
     expect(catalog.names).toContain('Bulbasaur');
@@ -15,16 +18,16 @@ describe('parsePokemonData - names (AC-02)', () => {
   });
 
   it('does not include non-English names', () => {
-    const raw = [{ id: 'BULBASAUR', names: { English: 'Bulbasaur', German: 'Bisasam' } }];
+    const raw = [{ names: { English: 'Bulbasaur', German: 'Bisasam' }, primaryType: { names: { English: 'Grass' } }, secondaryType: null }];
     const catalog = parsePokemonData(raw);
     expect(catalog.names).not.toContain('Bisasam');
   });
 
   it('returns names sorted alphabetically', () => {
     const raw = [
-      { id: 'VENUSAUR', names: { English: 'Venusaur' } },
-      { id: 'BULBASAUR', names: { English: 'Bulbasaur' } },
-      { id: 'IVYSAUR', names: { English: 'Ivysaur' } },
+      makeEntry('Venusaur', 'Grass', 'Poison'),
+      makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      makeEntry('Ivysaur', 'Grass', 'Poison'),
     ];
     const catalog = parsePokemonData(raw);
     expect([...catalog.names]).toEqual(['Bulbasaur', 'Ivysaur', 'Venusaur']);
@@ -32,8 +35,8 @@ describe('parsePokemonData - names (AC-02)', () => {
 
   it('skips entries with no English name but still counts them', () => {
     const raw = [
-      { id: 'BULBASAUR', names: { English: 'Bulbasaur' } },
-      { id: 'MYSTERY', names: {} },
+      makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      { names: {} },
     ];
     const catalog = parsePokemonData(raw);
     expect(catalog.names).toEqual(['Bulbasaur']);
@@ -41,7 +44,7 @@ describe('parsePokemonData - names (AC-02)', () => {
   });
 
   it('names are immutable', () => {
-    const raw = [{ id: 'BULBASAUR', names: { English: 'Bulbasaur' } }];
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
     const catalog = parsePokemonData(raw);
     expect(() => {
       (catalog.names as string[]).push('Hack');
@@ -49,7 +52,62 @@ describe('parsePokemonData - names (AC-02)', () => {
   });
 });
 
-describe('parsePokemonData', () => {
+describe('parsePokemonData - entries', () => {
+  it('includes entries with both name and primaryType', () => {
+    const raw = [makeEntry('Charmander', 'Fire')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe('Charmander');
+  });
+
+  it('sets primaryType name and colour', () => {
+    const raw = [makeEntry('Charmander', 'Fire')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].primaryType.name).toBe('Fire');
+    expect(entries[0].primaryType.color).toBe('#E62829');
+  });
+
+  it('sets secondaryType for dual-type Pokémon', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].secondaryType).not.toBeNull();
+    expect(entries[0].secondaryType!.name).toBe('Poison');
+    expect(entries[0].secondaryType!.color).toBe('#9141CB');
+  });
+
+  it('sets secondaryType to null for single-type Pokémon', () => {
+    const raw = [makeEntry('Charmander', 'Fire')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].secondaryType).toBeNull();
+  });
+
+  it('skips entries missing primaryType', () => {
+    const raw = [
+      makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      { names: { English: 'Mystery' }, primaryType: null, secondaryType: null },
+    ];
+    const { entries } = parsePokemonData(raw);
+    expect(entries).toHaveLength(1);
+    expect(entries[0].name).toBe('Bulbasaur');
+  });
+
+  it('returns entries sorted alphabetically', () => {
+    const raw = [
+      makeEntry('Venusaur', 'Grass', 'Poison'),
+      makeEntry('Bulbasaur', 'Grass', 'Poison'),
+    ];
+    const { entries } = parsePokemonData(raw);
+    expect(entries.map((e) => e.name)).toEqual(['Bulbasaur', 'Venusaur']);
+  });
+
+  it('falls back to #888888 for an unrecognised type', () => {
+    const raw = [makeEntry('Unknown', 'Spectral')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].primaryType.color).toBe('#888888');
+  });
+});
+
+describe('parsePokemonData - count and errors', () => {
   it('returns the count of entries in the array', () => {
     const raw = [{ id: 'BULBASAUR' }, { id: 'IVYSAUR' }, { id: 'VENUSAUR' }];
     const catalog = parsePokemonData(raw);
