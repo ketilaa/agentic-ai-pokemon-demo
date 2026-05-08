@@ -15,9 +15,10 @@ jest.mock('../../src/components/pokemon-search', () => ({
 }));
 
 import { PokemonExplorer } from '../../src/components/pokemon-explorer';
-import type { PokemonEntry } from '../../src/domain/pokemon-catalog';
+import type { PokemonEntry, StatMaxima } from '../../src/domain/pokemon-catalog';
 
 const STATS = { attack: 118, defense: 111, stamina: 128 };
+const MAXIMA: StatMaxima = { maxAttack: 200, maxDefense: 200, maxStamina: 200 };
 
 const ENTRIES: PokemonEntry[] = [
   { name: 'Bulbasaur', primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS },
@@ -27,23 +28,23 @@ const ENTRIES: PokemonEntry[] = [
 
 describe('PokemonExplorer', () => {
   it('renders the search input at the top', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     expect(screen.getByTestId('mock-search')).toBeInTheDocument();
   });
 
   it('AC-11: no card is shown before a Pokémon is selected', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     ENTRIES.forEach(({ name }) => expect(screen.queryByText(name)).not.toBeInTheDocument());
   });
 
   it('shows a card with the selected Pokémon name', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     fireEvent.change(screen.getByTestId('mock-search'), { target: { value: 'Bulbasaur' } });
     expect(screen.getByText('Bulbasaur')).toBeInTheDocument();
   });
 
   it('AC-05/AC-06: title section carries type colors for the selected Pokémon', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     fireEvent.change(screen.getByTestId('mock-search'), { target: { value: 'Bulbasaur' } });
     const title = screen.getByTestId('card-title-section');
     expect(title).toHaveAttribute('data-primary-color', '#3FA129');
@@ -51,7 +52,7 @@ describe('PokemonExplorer', () => {
   });
 
   it('AC-02: strength profile is shown for the selected Pokémon', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     fireEvent.change(screen.getByTestId('mock-search'), { target: { value: 'Bulbasaur' } });
     expect(screen.getByTestId('stat-bar-atk')).toBeInTheDocument();
     expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();
@@ -59,7 +60,7 @@ describe('PokemonExplorer', () => {
   });
 
   it('card updates when a different Pokémon is selected', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     const input = screen.getByTestId('mock-search');
     fireEvent.change(input, { target: { value: 'Bulbasaur' } });
     fireEvent.change(input, { target: { value: 'Ivysaur' } });
@@ -68,7 +69,7 @@ describe('PokemonExplorer', () => {
   });
 
   it('AC-11: card is hidden when the selection is cleared', () => {
-    render(<PokemonExplorer entries={ENTRIES} />);
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     const input = screen.getByTestId('mock-search');
     fireEvent.change(input, { target: { value: 'Bulbasaur' } });
     expect(screen.getByText('Bulbasaur')).toBeInTheDocument();

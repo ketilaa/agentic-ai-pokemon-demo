@@ -79,6 +79,52 @@ describe('parsePokemonData - stats (spec 0005 AC-01)', () => {
   });
 });
 
+describe('parsePokemonData - statMaxima (spec 0006 AC-01, AC-02, AC-03)', () => {
+  it('AC-01: maxAttack equals the highest Attack value in the dataset', () => {
+    const raw = [
+      makeEntry('A', 'Fire', undefined, { attack: 200, defense: 80, stamina: 100 }),
+      makeEntry('B', 'Water', undefined, { attack: 100, defense: 180, stamina: 120 }),
+    ];
+    expect(parsePokemonData(raw).statMaxima.maxAttack).toBe(200);
+  });
+
+  it('AC-02: maxDefense equals the highest Defense value in the dataset', () => {
+    const raw = [
+      makeEntry('A', 'Fire', undefined, { attack: 200, defense: 80, stamina: 100 }),
+      makeEntry('B', 'Water', undefined, { attack: 100, defense: 180, stamina: 120 }),
+    ];
+    expect(parsePokemonData(raw).statMaxima.maxDefense).toBe(180);
+  });
+
+  it('AC-03: maxStamina equals the highest Stamina value in the dataset', () => {
+    const raw = [
+      makeEntry('A', 'Fire', undefined, { attack: 200, defense: 80, stamina: 100 }),
+      makeEntry('B', 'Normal', undefined, { attack: 90, defense: 110, stamina: 250 }),
+    ];
+    expect(parsePokemonData(raw).statMaxima.maxStamina).toBe(250);
+  });
+
+  it('each maximum is computed independently per dimension', () => {
+    const raw = [
+      makeEntry('A', 'Fire', undefined, { attack: 300, defense: 50, stamina: 100 }),
+      makeEntry('B', 'Water', undefined, { attack: 50, defense: 300, stamina: 100 }),
+      makeEntry('C', 'Grass', undefined, { attack: 50, defense: 50, stamina: 300 }),
+    ];
+    const { statMaxima } = parsePokemonData(raw);
+    expect(statMaxima.maxAttack).toBe(300);
+    expect(statMaxima.maxDefense).toBe(300);
+    expect(statMaxima.maxStamina).toBe(300);
+  });
+
+  it('statMaxima is immutable', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    const { statMaxima } = parsePokemonData(raw);
+    expect(() => {
+      (statMaxima as { maxAttack: number }).maxAttack = 999;
+    }).toThrow();
+  });
+});
+
 describe('parsePokemonData - names', () => {
   it('extracts English names from each entry', () => {
     const raw = [

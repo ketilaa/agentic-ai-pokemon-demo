@@ -12,7 +12,7 @@ export default function HomePage() {
   const catalog = parsePokemonData(raw);
   return (
     <main>
-      <PokemonExplorer entries={catalog.entries} />
+      <PokemonExplorer entries={catalog.entries} statMaxima={catalog.statMaxima} />
       <PokemonCountDisplay count={catalog.count} />
     </main>
   );

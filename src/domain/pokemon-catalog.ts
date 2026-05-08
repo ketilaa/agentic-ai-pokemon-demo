@@ -16,10 +16,17 @@ export interface PokemonEntry {
   readonly stats: PokemonStats;
 }
 
+export interface StatMaxima {
+  readonly maxAttack: number;
+  readonly maxDefense: number;
+  readonly maxStamina: number;
+}
+
 export interface PokemonCatalog {
   readonly count: number;
   readonly names: readonly string[];
   readonly entries: readonly PokemonEntry[];
+  readonly statMaxima: StatMaxima;
 }
 
 // Pokémon GO type colour conventions — authoritative source for all type colors (spec 0004)
@@ -109,9 +116,16 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
   names.sort((a, b) => a.localeCompare(b));
   entries.sort((a, b) => a.name.localeCompare(b.name));
 
+  const statMaxima = Object.freeze({
+    maxAttack: entries.reduce((m, e) => Math.max(m, e.stats.attack), 0),
+    maxDefense: entries.reduce((m, e) => Math.max(m, e.stats.defense), 0),
+    maxStamina: entries.reduce((m, e) => Math.max(m, e.stats.stamina), 0),
+  });
+
   return Object.freeze({
     count: raw.length,
     names: Object.freeze(names),
     entries: Object.freeze(entries),
+    statMaxima,
   });
 }
