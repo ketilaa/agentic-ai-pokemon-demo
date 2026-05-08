@@ -80,21 +80,21 @@ describe('PokemonCard – strength profile (spec 0005)', () => {
     expect(screen.getByTestId('stat-bar-sta')).toBeInTheDocument();
   });
 
-  it('AC-03: stat bars reflect relative magnitudes within the Pokémon own profile', () => {
-    // UNBALANCED: attack 200 > stamina 140 > defense 80
+  it('AC-03: stat bars reflect relative magnitudes against the dataset maximum', () => {
+    // UNBALANCED: attack 200 > stamina 140 > defense 80, all against MAXIMA of 300
     render(<PokemonCard name="Attacker" primaryType={FIRE} secondaryType={null} stats={UNBALANCED} statMaxima={MAXIMA} />);
-    const atk = parseInt(screen.getByTestId('stat-bar-atk').getAttribute('data-stat-value') ?? '0');
-    const def = parseInt(screen.getByTestId('stat-bar-def').getAttribute('data-stat-value') ?? '0');
-    const sta = parseInt(screen.getByTestId('stat-bar-sta').getAttribute('data-stat-value') ?? '0');
+    const atk = parseInt(screen.getByTestId('stat-bar-atk').getAttribute('data-stat-pct') ?? '0');
+    const def = parseInt(screen.getByTestId('stat-bar-def').getAttribute('data-stat-pct') ?? '0');
+    const sta = parseInt(screen.getByTestId('stat-bar-sta').getAttribute('data-stat-pct') ?? '0');
     expect(atk).toBeGreaterThan(sta);
     expect(sta).toBeGreaterThan(def);
   });
 
-  it('AC-03: balanced stats produce equal bar values', () => {
+  it('AC-03: balanced stats produce equal bar percentages', () => {
     render(<PokemonCard name="Balanced" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} />);
-    const atk = parseInt(screen.getByTestId('stat-bar-atk').getAttribute('data-stat-value') ?? '0');
-    const def = parseInt(screen.getByTestId('stat-bar-def').getAttribute('data-stat-value') ?? '0');
-    const sta = parseInt(screen.getByTestId('stat-bar-sta').getAttribute('data-stat-value') ?? '0');
+    const atk = parseInt(screen.getByTestId('stat-bar-atk').getAttribute('data-stat-pct') ?? '0');
+    const def = parseInt(screen.getByTestId('stat-bar-def').getAttribute('data-stat-pct') ?? '0');
+    const sta = parseInt(screen.getByTestId('stat-bar-sta').getAttribute('data-stat-pct') ?? '0');
     expect(atk).toBe(def);
     expect(def).toBe(sta);
   });

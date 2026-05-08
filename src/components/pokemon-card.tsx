@@ -28,7 +28,7 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
   return (
     <Box sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}>
       {bars.map(({ label, value, datasetMax, testId }) => {
-        const pct = datasetMax > 0 ? Math.round((value / datasetMax) * 100) : 0;
+        const pct = datasetMax > 0 ? Math.floor((value / datasetMax) * 100) : 0;
         return (
           <Box key={label} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
             <Typography
