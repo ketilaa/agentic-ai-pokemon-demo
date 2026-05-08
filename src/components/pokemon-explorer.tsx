@@ -2,15 +2,16 @@
 import { useState } from 'react';
 import Box from '@mui/material/Box';
 import Container from '@mui/material/Container';
-import type { PokemonEntry } from '@/domain/pokemon-catalog';
+import type { PokemonEntry, StatMaxima } from '@/domain/pokemon-catalog';
 import { PokemonSearch } from './pokemon-search';
 import { PokemonCard } from './pokemon-card';
 
 interface Props {
   entries: readonly PokemonEntry[];
+  statMaxima: StatMaxima;
 }
 
-export function PokemonExplorer({ entries }: Props) {
+export function PokemonExplorer({ entries, statMaxima }: Props) {
   const [selected, setSelected] = useState<string | null>(null);
   const names = entries.map((e) => e.name);
   const selectedEntry = selected ? (entries.find((e) => e.name === selected) ?? null) : null;
@@ -27,6 +28,7 @@ export function PokemonExplorer({ entries }: Props) {
             primaryType={selectedEntry.primaryType}
             secondaryType={selectedEntry.secondaryType}
             stats={selectedEntry.stats}
+            statMaxima={statMaxima}
           />
         </Box>
       )}
