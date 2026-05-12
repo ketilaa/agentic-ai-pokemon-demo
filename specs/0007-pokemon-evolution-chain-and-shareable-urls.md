@@ -26,8 +26,8 @@ The raw dataset fetched by `scripts/fetch-pokemon.ts` contains an `evolutions` a
 ### 3.1 Build-time evolution chain derivation
 
 - At build time, a reverse evolution map is constructed from the raw dataset: for every entry whose `evolutions` array is non-empty, each target `id` in that array is mapped to the English name of the source entry.
-- A Pokémon's `evolvesFrom` is the English name of the single entry that lists it in its own `evolutions` array, or `null` if no such entry exists.
-- A Pokémon's `evolvesTo` is the ordered list of English names for all entries that appear in its own `evolutions` array. The list may contain zero, one, or multiple entries (e.g. Eevee has eight evolution targets).
+- A Pokémon's `evolvesFrom` is derived by de-duplicating all source English names that list it as an evolution target, then taking the single resulting name, or `null` if none exists. The raw dataset contains Pokémon with multiple form entries that share the same English name and list the same target (e.g. two form variants of Dunsparce both list Dudunsparce); after de-duplication by English name these always resolve to one unique name. If de-duplication were ever to yield more than one distinct English name — which does not occur in the current dataset — the behavior is implementation-defined.
+- A Pokémon's `evolvesTo` is the list of English names for all entries that appear in its own `evolutions` array, in dataset order (the order the elements appear in the source `evolutions` array). The list may contain zero, one, or multiple entries (e.g. Eevee has eight evolution targets).
 - Resolution from raw `id` to English name uses the same `names.English` extraction already present in `parsePokemonData`.
 - If a target `id` cannot be resolved to any entry in the dataset (e.g. the target is absent from the dataset), that target is silently omitted; it does not cause a build error.
 - The derived evolution data is embedded in `PokemonEntry` and available at runtime without any network request.
@@ -38,7 +38,7 @@ The raw dataset fetched by `scripts/fetch-pokemon.ts` contains an `evolutions` a
 - When a Pokémon has one or more entries in `evolvesTo`, the card displays a labeled section showing each successor name as an interactive element.
 - When `evolvesFrom` is `null` and `evolvesTo` is empty, no evolution section is shown.
 - Each interactive element is a clickable chip or link (MUI component). Clicking it selects the corresponding Pokémon exactly as if the user had searched for and selected it via the autocomplete.
-- The evolution section is placed within the content section of the card (below the type-colored title section), visually separated from the stat profile.
+- The evolution section is placed within the content section of the card (below the type-colored title section), visually separated from the stat profile. Whether the evolution section appears above or below the stat profile within the content section is implementation-defined.
 - The evolution section must not visually compete with the Pokémon name or the type color treatment.
 - Labels distinguish the two directions (predecessor vs. successors) clearly; the exact label text is left to the implementation, provided the distinction is unambiguous.
 
@@ -102,23 +102,24 @@ The raw dataset fetched by `scripts/fetch-pokemon.ts` contains an `evolutions` a
 | AC-03 | A mid-stage Pokémon (e.g. Ivysaur) has `evolvesFrom` equal to its predecessor's name (e.g. `"Bulbasaur"`) and `evolvesTo` containing its successor (e.g. `["Venusaur"]`). | Select Ivysaur; confirm both fields reflect the correct chain. |
 | AC-04 | A final-stage Pokémon with no further evolutions (e.g. Venusaur) has `evolvesFrom` set to its predecessor (e.g. `"Ivysaur"`) and `evolvesTo` as an empty array. | Select Venusaur; confirm `evolvesTo` is empty and `evolvesFrom` is `"Ivysaur"`. |
 | AC-05 | A Pokémon with multiple evolution targets (e.g. Eevee) has `evolvesTo` containing all its direct successors. | Select Eevee; confirm `evolvesTo` lists all its Eeveelutions present in the dataset. |
-| AC-06 | A standalone Pokémon with no evolution chain has `evolvesFrom: null` and `evolvesTo: []`. | Identify a Pokémon with no evolutions; select it; confirm both fields are absent/null/empty as expected. |
+| AC-06 | A standalone Pokémon with no evolution chain has `evolvesFrom: null` and `evolvesTo: []`. | Identify a Pokémon with no evolutions; select it; confirm `evolvesFrom` is null and `evolvesTo` is an empty array. |
 | AC-07 | The card for a mid-stage Pokémon displays both a "previous evolution" section and a "next evolution" section. | Select Ivysaur; confirm the card shows Bulbasaur as predecessor and Venusaur as successor in two visually distinct sections. |
 | AC-08 | The card for a base-stage Pokémon with evolutions displays only the "next evolution" section; no "previous evolution" section is shown. | Select Bulbasaur; confirm only the "evolves to" section appears on the card. |
 | AC-09 | The card for a final-stage Pokémon displays only the "previous evolution" section; no "next evolution" section is shown. | Select Venusaur; confirm only the "evolves from" section appears on the card. |
 | AC-10 | The card for a Pokémon with no evolution chain shows no evolution section at all. | Select a standalone Pokémon; confirm no evolution section appears on the card. |
 | AC-11 | Clicking an evolution link selects the corresponding Pokémon and updates the card. | On Ivysaur's card, click the Bulbasaur evolution link; confirm the card now shows Bulbasaur. |
 | AC-12 | Clicking an evolution link updates the URL to `?pokemon=<target-name>`. | After clicking a Venusaur evolution link from Ivysaur, confirm the URL becomes `?pokemon=Venusaur`. |
-| AC-13 | The multi-target evolution list (e.g. Eevee's eight successors) renders without horizontal overflow on a 375 px viewport. | Select Eevee at 375 px viewport width; confirm all evolution chips are visible and none cause horizontal scrolling. |
+| AC-13 | The multi-target evolution list (e.g. Eevee's eight successors) wraps onto multiple lines rather than overflowing horizontally on a 375 px viewport. | Select Eevee at 375 px viewport width; confirm all eight evolution chips are rendered and wrap within the card width without any chip being clipped or cut off. |
 | AC-14 | Selecting a Pokémon via the autocomplete updates the URL to `?pokemon=<selected-name>`. | Search for and select Charizard; confirm the URL becomes `?pokemon=Charizard`. |
 | AC-15 | Loading the page with `?pokemon=Bulbasaur` immediately shows Bulbasaur's card without user interaction. | Navigate directly to the page URL with `?pokemon=Bulbasaur`; confirm Bulbasaur's card is rendered on arrival. |
-| AC-16 | Loading the page with an unrecognized `?pokemon=` value shows no card and does not throw an error. | Navigate to `?pokemon=UnknownXYZ`; confirm the page loads cleanly with no card shown. |
+| AC-16 | Loading the page with an unrecognized `?pokemon=` value shows no card, does not throw an error, and removes the invalid parameter from the URL. | Navigate to `?pokemon=UnknownXYZ`; confirm the page loads cleanly with no card shown and the URL no longer contains the `pokemon` parameter. |
 | AC-17 | Selecting a new Pokémon from an existing selection replaces the URL rather than pushing a new history entry. | Select one Pokémon; then select a second; confirm the browser history has not grown by two entries (clicking back from the second selection goes beyond the first). |
 | AC-18 | The stat profile bars from Iteration 6 remain visible and correctly scaled on the card when evolution data is also shown. | Select a Pokémon with a full evolution chain; confirm Attack, Defense, and Stamina bars are present and correctly proportioned alongside the evolution section. |
 | AC-19 | The type-colored title section is unchanged. | Select Bulbasaur (Grass/Poison); confirm the title section background still reflects the type color treatment from Iteration 4. |
-| AC-20 | The full card is visible on a 375 px viewport without horizontal scrolling for a Pokémon with a multi-target evolution list. | Select Eevee at 375 px; confirm no horizontal overflow. |
+| AC-20 | The full card produces no horizontal scrollbar on a 375 px viewport when a multi-target evolution list is present. | Select Eevee at 375 px; open DevTools; confirm the document body and card container report no horizontal scroll width beyond the viewport. |
 | AC-21 | Running `next build` produces a static export with no server-dependent artefacts. | Run `next build`; confirm `out/` contains only static files and no API or server routes. |
 | AC-22 | The browser makes no outbound network requests when navigating the evolution chain. | Open DevTools Network tab; click multiple evolution links; confirm zero requests to any external host. |
+| AC-23 | Clearing the autocomplete selection removes the `pokemon` parameter from the URL. | Select a Pokémon so `?pokemon=<name>` appears in the URL; clear the autocomplete input; confirm the URL no longer contains the `pokemon` parameter and no card is shown. |
 
 ---
 
@@ -129,6 +130,7 @@ The raw dataset fetched by `scripts/fetch-pokemon.ts` contains an `evolutions` a
 - **Case sensitivity in URL parameter.** Pokémon names are mixed-case (e.g. `"Mr. Mime"`). URL decoding must match the exact name in the catalog. The implementation must ensure the parameter value is compared against catalog names without unintended case transformation.
 - **Special characters in names.** Some Pokémon names contain punctuation (e.g. `"Mr. Mime"`, `"Farfetch'd"`). URL encoding is handled automatically by the browser and `encodeURIComponent`; the implementation must not double-encode.
 - **Dataset coverage gaps.** Some evolution targets in the raw API data may not be present as entries in the dataset (e.g. forms or regional variants excluded by the existing parser). These must be silently omitted without breaking the build or the display.
+- **Duplicate form entries sharing an evolution target.** The raw dataset contains Pokémon represented by multiple form entries with the same English name (e.g. two Dunsparce form entries both listing Dudunsparce as a target). The reverse lookup must de-duplicate by English name before assigning `evolvesFrom` to avoid producing multiple identical chips or a miscount of predecessor entries.
 
 ---
 
