@@ -13,6 +13,7 @@ interface Props {
   statMaxima: StatMaxima;
   evolvesFrom: string | null;
   evolvesTo: readonly string[];
+  imageUrl?: string | null;
   onSelect: (name: string) => void;
 }
 
@@ -57,7 +58,7 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
   );
 }
 
-export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, onSelect }: Props) {
+export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, onSelect }: Props) {
   return (
     <Card
       data-testid="pokemon-card"
@@ -86,6 +87,20 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
         }),
       }}
     >
+      {imageUrl && (
+        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={imageUrl}
+            alt=""
+            aria-hidden="true"
+            data-testid="pokemon-image"
+            width={80}
+            height={80}
+            style={{ display: 'block', width: 80, height: 80, objectFit: 'contain', pointerEvents: 'none' }}
+          />
+        </Box>
+      )}
       <Box data-testid="card-title-section" sx={{ px: 2, py: 1.5 }}>
         <Typography variant="h6" data-name-color-source="theme" sx={{ color: 'text.primary' }}>
           {name}

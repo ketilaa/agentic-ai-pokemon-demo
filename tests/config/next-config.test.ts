@@ -1,7 +1,8 @@
 // AC-02: Next.js must be configured with output: 'export'
 // basePath must be configurable via NEXT_BASE_PATH for GitHub Pages project-site hosting.
 
-type NextConfig = { output?: string; basePath?: string };
+type RemotePattern = { protocol?: string; hostname: string; port?: string; pathname?: string };
+type NextConfig = { output?: string; basePath?: string; images?: { remotePatterns?: RemotePattern[] } };
 
 function loadConfig(): NextConfig {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
@@ -17,6 +18,15 @@ describe('next.config output', () => {
     const { output } = loadConfig();
     expect(output).not.toBe('standalone');
     expect(output).not.toBeUndefined();
+  });
+});
+
+describe('next.config images (spec 0009 AC-13)', () => {
+  it('AC-13: raw.githubusercontent.com is the only permitted remote image host', () => {
+    const config = loadConfig();
+    const patterns = config.images?.remotePatterns ?? [];
+    expect(patterns).toHaveLength(1);
+    expect(patterns[0].hostname).toBe('raw.githubusercontent.com');
   });
 });
 

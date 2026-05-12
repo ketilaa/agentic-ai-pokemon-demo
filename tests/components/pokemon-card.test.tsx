@@ -278,6 +278,49 @@ describe('PokemonCard – type visual language (spec 0008)', () => {
   });
 });
 
+describe('PokemonCard – image (spec 0009 AC-08, AC-09, AC-12)', () => {
+  const IMAGE_URL = 'https://raw.githubusercontent.com/pokemon-go-api/assets/main/Pokemon/pm1.icon.png';
+
+  it('AC-08: when imageUrl is non-null, card renders an image element with the correct src', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    const img = screen.getByTestId('pokemon-image');
+    expect(img).toBeInTheDocument();
+    expect(img).toHaveAttribute('src', IMAGE_URL);
+  });
+
+  it('AC-09: when imageUrl is null, no image element is rendered', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={null} onSelect={jest.fn()} />);
+    expect(screen.queryByTestId('pokemon-image')).not.toBeInTheDocument();
+  });
+
+  it('AC-09: when imageUrl is omitted, no image element is rendered', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.queryByTestId('pokemon-image')).not.toBeInTheDocument();
+  });
+
+  it('AC-12: image element has no click handler and is aria-hidden (decorative)', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    const img = screen.getByTestId('pokemon-image');
+    expect(img).toHaveAttribute('aria-hidden', 'true');
+    expect(img).toHaveAttribute('alt', '');
+  });
+
+  it('AC-11: name and stat bars remain present when image is displayed', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    expect(screen.getByText('Bulbasaur')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-atk')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-sta')).toBeInTheDocument();
+  });
+
+  it('AC-11: evolution chain navigation remains present when image is displayed', () => {
+    render(<PokemonCard name="Ivysaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom="Bulbasaur" evolvesTo={['Venusaur']} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('evolution-section')).toBeInTheDocument();
+    expect(screen.getByTestId('evolves-from-section')).toBeInTheDocument();
+    expect(screen.getByTestId('evolves-to-section')).toBeInTheDocument();
+  });
+});
+
 describe('PokemonCard – spec 0004 constraints preserved', () => {
   it('no type name appears on the card', () => {
     render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);

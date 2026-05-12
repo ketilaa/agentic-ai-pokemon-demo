@@ -16,6 +16,7 @@ export interface PokemonEntry {
   readonly stats: PokemonStats;
   readonly evolvesFrom: string | null;
   readonly evolvesTo: readonly string[];
+  readonly imageUrl: string | null;
 }
 
 export interface StatMaxima {
@@ -52,6 +53,22 @@ export const TYPE_COLORS: Record<string, string> = {
   Steel: '#60A1B8',
   Water: '#2980EF',
 };
+
+const PERMITTED_IMAGE_HOST = 'raw.githubusercontent.com';
+
+function extractImageUrl(item: unknown): string | null {
+  if (typeof item !== 'object' || item === null) return null;
+  const assets = (item as Record<string, unknown>).assets;
+  if (typeof assets !== 'object' || assets === null) return null;
+  const image = (assets as Record<string, unknown>).image;
+  if (typeof image !== 'string') return null;
+  try {
+    const url = new URL(image);
+    return url.hostname === PERMITTED_IMAGE_HOST ? image : null;
+  } catch {
+    return null;
+  }
+}
 
 function extractId(item: unknown): string | null {
   if (typeof item !== 'object' || item === null) return null;
@@ -162,6 +179,7 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       stats,
       evolvesFrom,
       evolvesTo,
+      imageUrl: extractImageUrl(item),
     });
   }
 
