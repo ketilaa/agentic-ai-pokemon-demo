@@ -16,6 +16,7 @@ interface Props {
   onSelect: (name: string) => void;
 }
 
+const TINT_OPACITY = 0.08;
 
 function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatMaxima }) {
   const bars = [
@@ -57,23 +58,36 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
 }
 
 export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, onSelect }: Props) {
-  const borderSx = secondaryType
-    ? { border: `3px solid ${primaryType.color}`, borderLeft: `6px solid ${secondaryType.color}` }
-    : { border: `3px solid ${primaryType.color}` };
-
   return (
     <Card
       data-testid="pokemon-card"
       data-border-primary-color={primaryType.color}
       data-border-secondary-color={secondaryType?.color ?? ''}
+      data-border-primary-sides="4"
+      data-border-secondary-sides={secondaryType ? '1' : '0'}
       data-tint-color={primaryType.color}
-      sx={{ overflow: 'hidden', bgcolor: alpha(primaryType.color, 0.08), ...borderSx }}
+      data-tint-opacity={TINT_OPACITY}
+      sx={{
+        overflow: 'hidden',
+        position: 'relative',
+        bgcolor: alpha(primaryType.color, TINT_OPACITY),
+        border: `3px solid ${primaryType.color}`,
+        ...(secondaryType && {
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '4px',
+            backgroundColor: secondaryType.color,
+            pointerEvents: 'none',
+          },
+        }),
+      }}
     >
-      <Box
-        data-testid="card-title-section"
-        sx={{ px: 2, py: 1.5 }}
-      >
-        <Typography variant="h6" sx={{ color: 'text.primary' }}>
+      <Box data-testid="card-title-section" sx={{ px: 2, py: 1.5 }}>
+        <Typography variant="h6" data-name-color-source="theme" sx={{ color: 'text.primary' }}>
           {name}
         </Typography>
       </Box>
