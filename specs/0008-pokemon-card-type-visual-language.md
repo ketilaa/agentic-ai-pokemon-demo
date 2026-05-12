@@ -1,6 +1,6 @@
 # Spec 0008 – Pokémon Card Type Visual Language Refinement
 
-**Status:** Draft  
+**Status:** Complete  
 **Iteration:** 8  
 **Author:** Architect agent  
 **Date:** 2026-05-12
