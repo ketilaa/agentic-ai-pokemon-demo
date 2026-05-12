@@ -29,7 +29,8 @@ Because image URLs originate from an external dataset, they are an untrusted inp
 
 - The page must not display any heading containing the text "Pokémon GO Pokédex" or any derivative of it.
 - The page must not display a count of available Pokémon in any form.
-- The page `<title>` metadata must not be set to "Pokémon GO Pokédex". If no application-level title is defined for this iteration, the title may be absent or set to a neutral value.
+- The page `<title>` metadata must be updated. The string "Pokémon GO Pokédex" must be removed from the application-level title definition in the layout metadata. The title may be replaced with a neutral value or left absent; it must not retain the original string in any form.
+- The component responsible for the heading and count display must be deleted entirely, along with its dedicated test file. It must not be left as dead code or merely de-rendered from the page.
 - No other content or behavior is affected by this removal.
 
 ### 3.2 Image URL extraction at build time
@@ -122,7 +123,7 @@ Because image URLs originate from an external dataset, they are an untrusted inp
 - **85 entries with no image.** Image absence is the norm for roughly 8% of the dataset. The implementation must handle null `imageUrl` gracefully and must not produce a layout irregularity for those entries.
 - **URL parsing safety.** The build-time host validation must use a proper URL parser (`new URL(...)`) rather than string matching, to correctly handle edge cases such as encoded characters, subdomain spoofing (e.g., `raw.githubusercontent.com.evil.com`), or protocol-relative URLs.
 - **Image dimensions.** The source images are icon-sized PNGs. Their intrinsic dimensions are small, but the implementation must set explicit rendering dimensions to prevent layout reflow and to ensure consistent presentation across all entries.
-- **Regression in scaffolding-removal.** Removing the `PokemonCountDisplay` component and the heading may affect tests that assert their presence. Those tests must be updated or removed alongside the removal.
+- **Scaffolding deletion.** The heading and count display live in a dedicated component (`PokemonCountDisplay`) with a dedicated test file (`tests/components/pokemon-count-display.test.tsx`). Both the component file and its test file must be deleted; they must not be left as dead code or orphaned imports. Any reference to the component in `page.tsx` must also be removed. Leaving either file in place will cause the test suite to fail to compile if the component import is broken, or produce a false-passing test suite if the component file is retained but not rendered.
 
 ---
 
