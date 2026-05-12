@@ -2,6 +2,7 @@ import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
+import { alpha } from '@mui/material/styles';
 import type { PokemonStats, PokemonType, StatMaxima } from '@/domain/pokemon-catalog';
 
 interface Props {
@@ -15,12 +16,7 @@ interface Props {
   onSelect: (name: string) => void;
 }
 
-function textColor(hex: string): string {
-  const r = parseInt(hex.slice(1, 3), 16);
-  const g = parseInt(hex.slice(3, 5), 16);
-  const b = parseInt(hex.slice(5, 7), 16);
-  return (0.299 * r + 0.587 * g + 0.114 * b) / 255 > 0.55 ? '#212121' : '#ffffff';
-}
+const TINT_OPACITY = 0.08;
 
 function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatMaxima }) {
   const bars = [
@@ -62,20 +58,36 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
 }
 
 export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, onSelect }: Props) {
-  const background = secondaryType
-    ? `linear-gradient(135deg, ${primaryType.color} 65%, ${secondaryType.color} 65%)`
-    : primaryType.color;
-
   return (
-    <Card data-testid="pokemon-card" sx={{ overflow: 'hidden' }}>
-      <Box
-        data-testid="card-title-section"
-        data-primary-color={primaryType.color}
-        data-secondary-color={secondaryType?.color ?? ''}
-        data-background={background}
-        sx={{ background, px: 2, py: 1.5 }}
-      >
-        <Typography variant="h6" sx={{ color: textColor(primaryType.color) }}>
+    <Card
+      data-testid="pokemon-card"
+      data-border-primary-color={primaryType.color}
+      data-border-secondary-color={secondaryType?.color ?? ''}
+      data-border-primary-sides="4"
+      data-border-secondary-sides={secondaryType ? '1' : '0'}
+      data-tint-color={primaryType.color}
+      data-tint-opacity={TINT_OPACITY}
+      sx={{
+        overflow: 'hidden',
+        position: 'relative',
+        bgcolor: alpha(primaryType.color, TINT_OPACITY),
+        border: `3px solid ${primaryType.color}`,
+        ...(secondaryType && {
+          '&::before': {
+            content: '""',
+            position: 'absolute',
+            left: 0,
+            top: 0,
+            bottom: 0,
+            width: '4px',
+            backgroundColor: secondaryType.color,
+            pointerEvents: 'none',
+          },
+        }),
+      }}
+    >
+      <Box data-testid="card-title-section" sx={{ px: 2, py: 1.5 }}>
+        <Typography variant="h6" data-name-color-source="theme" sx={{ color: 'text.primary' }}>
           {name}
         </Typography>
       </Box>

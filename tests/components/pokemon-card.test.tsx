@@ -6,10 +6,14 @@ import '@testing-library/jest-dom';
 import { PokemonCard } from '../../src/components/pokemon-card';
 import type { PokemonStats, PokemonType, StatMaxima } from '../../src/domain/pokemon-catalog';
 
-// AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09, AC-10 (spec 0005)
-// AC-04, AC-06, AC-07, AC-08, AC-09, AC-10, AC-13 carried from spec 0004
-// AC-04 – AC-08 (spec 0006)
+// spec 0005: AC-02–AC-10
+// spec 0006: AC-04–AC-08
+// spec 0007: AC-07–AC-10, AC-18
+// spec 0008 automated: AC-01, AC-02, AC-03, AC-04, AC-05, AC-06, AC-07, AC-08, AC-09, AC-11, AC-13, AC-15, AC-16, AC-19
+// spec 0008 manual QA only: AC-10 (centralized theme — verified via constants matching TYPE_COLORS),
+//   AC-12 (375 px viewport), AC-14 (visual cohesion), AC-17 (next build), AC-18 (network)
 
+// Color constants must match TYPE_COLORS in pokemon-catalog.ts (AC-10 proxy)
 const FIRE: PokemonType = { name: 'Fire', color: '#E62829' };
 const FLYING: PokemonType = { name: 'Flying', color: '#81B9EF' };
 const GRASS: PokemonType = { name: 'Grass', color: '#3FA129' };
@@ -34,33 +38,26 @@ describe('PokemonCard – card structure (spec 0005)', () => {
     expect(within(title).getByText('Charizard')).toBeInTheDocument();
   });
 
-  it('AC-06: title section carries primary type color for a single-type Pokémon', () => {
+  it('AC-06: card container carries primary type color for a single-type Pokémon', () => {
     render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
-    const title = screen.getByTestId('card-title-section');
-    expect(title).toHaveAttribute('data-primary-color', '#E62829');
-    expect(title).toHaveAttribute('data-secondary-color', '');
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-border-primary-color', '#E62829');
+    expect(card).toHaveAttribute('data-border-secondary-color', '');
   });
 
-  it('AC-06: title section carries both type colors for a dual-type Pokémon', () => {
+  it('AC-06: card container carries both type colors for a dual-type Pokémon', () => {
     render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
-    const title = screen.getByTestId('card-title-section');
-    expect(title).toHaveAttribute('data-primary-color', '#E62829');
-    expect(title).toHaveAttribute('data-secondary-color', '#81B9EF');
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-border-primary-color', '#E62829');
+    expect(card).toHaveAttribute('data-border-secondary-color', '#81B9EF');
   });
 
-  it('AC-06: primary color occupies the dominant portion of the title gradient', () => {
-    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
-    const bg = screen.getByTestId('card-title-section').getAttribute('data-background') ?? '';
-    expect(bg).toContain('#E62829 65%');
-    expect(bg).toContain('#81B9EF 65%');
-    expect(bg.indexOf('#E62829')).toBeLessThan(bg.indexOf('#81B9EF'));
-  });
-
-  it('AC-07: content section does not carry type color attributes', () => {
+  // 0005-AC-07: prefixed to disambiguate from spec 0008 AC-07
+  it('0005-AC-07: content section does not carry type color attributes', () => {
     render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
     const content = screen.getByTestId('card-content-section');
-    expect(content).not.toHaveAttribute('data-primary-color');
-    expect(content).not.toHaveAttribute('data-background');
+    expect(content).not.toHaveAttribute('data-border-primary-color');
+    expect(content).not.toHaveAttribute('data-tint-color');
   });
 
   it('AC-08: strength profile is inside the content section', () => {
@@ -190,6 +187,94 @@ describe('PokemonCard – evolution section (spec 0007)', () => {
     expect(screen.getByTestId('stat-bar-atk')).toBeInTheDocument();
     expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();
     expect(screen.getByTestId('stat-bar-sta')).toBeInTheDocument();
+  });
+});
+
+describe('PokemonCard – type visual language (spec 0008)', () => {
+  // AC-12 (375 px viewport rendering) and AC-14 (dual-type visual cohesion) require
+  // manual visual QA — they cannot be verified in a jsdom environment.
+
+  it('AC-01: card border carries the primary type color', () => {
+    render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('pokemon-card')).toHaveAttribute('data-border-primary-color', '#E62829');
+  });
+
+  it('AC-02: card exposes a tint color derived from the primary type', () => {
+    render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('pokemon-card')).toHaveAttribute('data-tint-color', '#E62829');
+  });
+
+  it('AC-03: tint opacity is low and does not overpower content (threshold ≤ 0.15)', () => {
+    render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    const opacity = parseFloat(screen.getByTestId('pokemon-card').getAttribute('data-tint-opacity') ?? '1');
+    expect(opacity).toBeGreaterThan(0);
+    expect(opacity).toBeLessThan(0.15);
+  });
+
+  it('AC-04/AC-06: primary border covers more sides than secondary for a dual-type Pokémon', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-border-primary-color', '#E62829');
+    expect(card).toHaveAttribute('data-border-secondary-color', '#81B9EF');
+    const primarySides = parseInt(card.getAttribute('data-border-primary-sides') ?? '0');
+    const secondarySides = parseInt(card.getAttribute('data-border-secondary-sides') ?? '0');
+    expect(primarySides).toBeGreaterThan(secondarySides);
+  });
+
+  it('AC-05: tint color is primary type only for a dual-type Pokémon', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-tint-color', '#E62829');
+    expect(card.getAttribute('data-tint-color')).not.toBe('#81B9EF');
+  });
+
+  it('AC-07: no standalone type indicator exists on the card', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.queryByTestId('type-swatch-primary')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('type-swatch-secondary')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/type-indicator|type-badge|type-legend/)).not.toBeInTheDocument();
+  });
+
+  it('AC-08: no type name or label appears on the card', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.queryByText('Fire')).not.toBeInTheDocument();
+    expect(screen.queryByText('Flying')).not.toBeInTheDocument();
+    expect(screen.queryByText(/^type$/i)).not.toBeInTheDocument();
+  });
+
+  it('AC-09: no legend, tooltip, or explanatory annotation for type color is present', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.queryByRole('tooltip')).not.toBeInTheDocument();
+    expect(screen.queryByTestId(/type-legend|type-annotation|type-explanation/)).not.toBeInTheDocument();
+  });
+
+  it('AC-11: Pokémon name uses a theme color token, not a type-derived color', () => {
+    render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.getByText('Charmander')).toHaveAttribute('data-name-color-source', 'theme');
+  });
+
+  it('AC-13: single-type card has no secondary border color or secondary border sides', () => {
+    render(<PokemonCard name="Charmander" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-border-secondary-color', '');
+    expect(card).toHaveAttribute('data-border-secondary-sides', '0');
+  });
+
+  it('AC-15/AC-16: stat bars and evolution section remain present with new visual treatment', () => {
+    render(<PokemonCard name="Ivysaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom="Bulbasaur" evolvesTo={['Venusaur']} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('stat-bar-atk')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-sta')).toBeInTheDocument();
+    expect(screen.getByTestId('evolution-section')).toBeInTheDocument();
+  });
+
+  it('AC-19: card uses tint approach — tint opacity is set and below saturation threshold', () => {
+    render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    const card = screen.getByTestId('pokemon-card');
+    const opacity = parseFloat(card.getAttribute('data-tint-opacity') ?? '1');
+    expect(opacity).toBeLessThan(0.5);
+    expect(card).not.toHaveAttribute('data-background');
+    expect(screen.getByTestId('card-title-section')).not.toHaveAttribute('data-background');
   });
 });
 

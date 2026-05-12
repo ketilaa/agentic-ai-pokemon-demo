@@ -57,12 +57,12 @@ describe('PokemonExplorer', () => {
     expect(screen.getByText('Bulbasaur')).toBeInTheDocument();
   });
 
-  it('AC-05/AC-06: title section carries type colors for the selected Pokémon', () => {
+  it('AC-05/AC-06: card container carries type colors for the selected Pokémon', () => {
     render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     fireEvent.change(screen.getByTestId('mock-search'), { target: { value: 'Bulbasaur' } });
-    const title = screen.getByTestId('card-title-section');
-    expect(title).toHaveAttribute('data-primary-color', '#3FA129');
-    expect(title).toHaveAttribute('data-secondary-color', '#9141CB');
+    const card = screen.getByTestId('pokemon-card');
+    expect(card).toHaveAttribute('data-border-primary-color', '#3FA129');
+    expect(card).toHaveAttribute('data-border-secondary-color', '#9141CB');
   });
 
   it('AC-02: strength profile is shown for the selected Pokémon', () => {
