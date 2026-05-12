@@ -161,6 +161,38 @@ describe('PokemonCard – dataset-relative stat scaling (spec 0006)', () => {
   });
 });
 
+describe('PokemonCard – evolution section (spec 0007)', () => {
+  it('AC-10: no evolution section is rendered for a standalone Pokémon', () => {
+    render(<PokemonCard name="Snorlax" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.queryByTestId('evolution-section')).not.toBeInTheDocument();
+  });
+
+  it('AC-08: only the evolves-to section is shown for a base-stage Pokémon', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={['Ivysaur']} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('evolves-to-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('evolves-from-section')).not.toBeInTheDocument();
+  });
+
+  it('AC-09: only the evolves-from section is shown for a final-stage Pokémon', () => {
+    render(<PokemonCard name="Venusaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={'Ivysaur'} evolvesTo={[]} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('evolves-from-section')).toBeInTheDocument();
+    expect(screen.queryByTestId('evolves-to-section')).not.toBeInTheDocument();
+  });
+
+  it('AC-07: both sections shown for a mid-stage Pokémon', () => {
+    render(<PokemonCard name="Ivysaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={'Bulbasaur'} evolvesTo={['Venusaur']} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('evolves-from-section')).toBeInTheDocument();
+    expect(screen.getByTestId('evolves-to-section')).toBeInTheDocument();
+  });
+
+  it('AC-18: stat bars remain present alongside the evolution section', () => {
+    render(<PokemonCard name="Ivysaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={'Bulbasaur'} evolvesTo={['Venusaur']} onSelect={jest.fn()} />);
+    expect(screen.getByTestId('stat-bar-atk')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();
+    expect(screen.getByTestId('stat-bar-sta')).toBeInTheDocument();
+  });
+});
+
 describe('PokemonCard – spec 0004 constraints preserved', () => {
   it('no type name appears on the card', () => {
     render(<PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);

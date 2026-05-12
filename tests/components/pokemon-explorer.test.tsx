@@ -4,10 +4,11 @@
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 
+const mockGet = jest.fn<string | null, [string]>().mockReturnValue(null);
 const mockReplace = jest.fn();
 
 jest.mock('next/navigation', () => ({
-  useSearchParams: () => ({ get: () => null }),
+  useSearchParams: () => ({ get: mockGet }),
   useRouter: () => ({ replace: mockReplace }),
   usePathname: () => '/',
 }));
@@ -35,6 +36,11 @@ const ENTRIES: PokemonEntry[] = [
 ];
 
 describe('PokemonExplorer', () => {
+  beforeEach(() => {
+    mockGet.mockReturnValue(null);
+    mockReplace.mockClear();
+  });
+
   it('renders the search input at the top', () => {
     render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     expect(screen.getByTestId('mock-search')).toBeInTheDocument();
@@ -121,5 +127,19 @@ describe('PokemonExplorer', () => {
     fireEvent.click(venusaurChip);
     expect(screen.getByTestId('pokemon-card')).toBeInTheDocument();
     expect(mockReplace).toHaveBeenCalledWith('/?pokemon=Venusaur');
+  });
+
+  it('AC-15: loading with a valid ?pokemon= param immediately shows that Pokémon\'s card', () => {
+    mockGet.mockReturnValue('Bulbasaur');
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
+    expect(screen.getByTestId('pokemon-card')).toBeInTheDocument();
+    expect(within(screen.getByTestId('card-title-section')).getByText('Bulbasaur')).toBeInTheDocument();
+  });
+
+  it('AC-16: loading with an invalid ?pokemon= param shows no card and cleans the URL', () => {
+    mockGet.mockReturnValue('UnknownXYZ');
+    render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
+    expect(screen.queryByTestId('pokemon-card')).not.toBeInTheDocument();
+    expect(mockReplace).toHaveBeenCalledWith('/');
   });
 });
