@@ -339,6 +339,60 @@ describe('parsePokemonData - evolution chain (spec 0007 AC-01 to AC-06)', () => 
   });
 });
 
+describe('parsePokemonData - imageUrl (spec 0009 AC-04 to AC-07)', () => {
+  const VALID_IMAGE_URL = 'https://raw.githubusercontent.com/pokemon-go-api/assets/main/Pokemon/pm1.icon.png';
+
+  it('AC-04: each PokemonEntry has an imageUrl field of type string | null', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0]).toHaveProperty('imageUrl');
+    const val = entries[0].imageUrl;
+    expect(val === null || typeof val === 'string').toBe(true);
+  });
+
+  it('AC-05: entry with a raw.githubusercontent.com image URL has a non-null imageUrl equal to that URL', () => {
+    const raw = [{ ...makeEntry('Bulbasaur', 'Grass', 'Poison'), assets: { image: VALID_IMAGE_URL } }];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBe(VALID_IMAGE_URL);
+  });
+
+  it('AC-06: entry with no assets.image field has imageUrl null', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBeNull();
+  });
+
+  it('AC-06: entry with assets.image set to null has imageUrl null', () => {
+    const raw = [{ ...makeEntry('Bulbasaur', 'Grass', 'Poison'), assets: { image: null } }];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBeNull();
+  });
+
+  it('AC-07: entry whose assets.image hostname is not raw.githubusercontent.com has imageUrl null', () => {
+    const raw = [{ ...makeEntry('Bulbasaur', 'Grass', 'Poison'), assets: { image: 'https://evil.example.com/image.png' } }];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBeNull();
+  });
+
+  it('AC-07: subdomain-spoofed host (raw.githubusercontent.com.evil.com) has imageUrl null', () => {
+    const raw = [{ ...makeEntry('Bulbasaur', 'Grass', 'Poison'), assets: { image: 'https://raw.githubusercontent.com.evil.com/x.png' } }];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBeNull();
+  });
+
+  it('AC-06: entry with assets.image as a non-string (number) has imageUrl null', () => {
+    const raw = [{ ...makeEntry('Bulbasaur', 'Grass', 'Poison'), assets: { image: 42 } }];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBeNull();
+  });
+
+  it('invalid URL string results in imageUrl null', () => {
+    const raw = [{ ...makeEntry('Bulbasaur', 'Grass', 'Poison'), assets: { image: 'not-a-url' } }];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].imageUrl).toBeNull();
+  });
+});
+
 describe('parsePokemonData - count and errors', () => {
   it('returns the count of entries in the array', () => {
     const raw = [{ id: 'BULBASAUR' }, { id: 'IVYSAUR' }, { id: 'VENUSAUR' }];
