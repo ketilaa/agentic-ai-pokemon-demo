@@ -14,6 +14,8 @@ export interface PokemonEntry {
   readonly primaryType: PokemonType;
   readonly secondaryType: PokemonType | null;
   readonly stats: PokemonStats;
+  readonly evolvesFrom: string | null;
+  readonly evolvesTo: readonly string[];
 }
 
 export interface StatMaxima {
@@ -50,6 +52,25 @@ export const TYPE_COLORS: Record<string, string> = {
   Steel: '#60A1B8',
   Water: '#2980EF',
 };
+
+function extractId(item: unknown): string | null {
+  if (typeof item !== 'object' || item === null) return null;
+  const id = (item as Record<string, unknown>).id;
+  return typeof id === 'string' && id.length > 0 ? id : null;
+}
+
+function extractEvolutionIds(item: unknown): string[] {
+  if (typeof item !== 'object' || item === null) return [];
+  const evolutions = (item as Record<string, unknown>).evolutions;
+  if (!Array.isArray(evolutions)) return [];
+  const ids: string[] = [];
+  for (const evo of evolutions) {
+    if (typeof evo !== 'object' || evo === null) continue;
+    const id = (evo as Record<string, unknown>).id;
+    if (typeof id === 'string' && id.length > 0) ids.push(id);
+  }
+  return ids;
+}
 
 function toType(typeName: string): PokemonType {
   return { name: typeName, color: TYPE_COLORS[typeName] ?? '#888888' };
@@ -88,6 +109,25 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     throw new Error('Pokémon data array must not be empty');
   }
 
+  // Build id → English name map for resolving evolution targets
+  const idToName = new Map<string, string>();
+  for (const item of raw as unknown[]) {
+    const id = extractId(item);
+    const name = extractEnglishName(item);
+    if (id && name) idToName.set(id, name);
+  }
+
+  // Build reverse evolution map: target id → de-duplicated set of source English names
+  const reverseEvoMap = new Map<string, Set<string>>();
+  for (const item of raw as unknown[]) {
+    const sourceName = extractEnglishName(item);
+    if (!sourceName) continue;
+    for (const targetId of extractEvolutionIds(item)) {
+      if (!reverseEvoMap.has(targetId)) reverseEvoMap.set(targetId, new Set());
+      reverseEvoMap.get(targetId)!.add(sourceName);
+    }
+  }
+
   const names: string[] = [];
   const entries: PokemonEntry[] = [];
 
@@ -105,11 +145,23 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     const stats = extractStats(item);
     if (!stats) continue;
 
+    const id = extractId(item);
+    const sourceNames = id ? [...(reverseEvoMap.get(id) ?? [])] : [];
+    const evolvesFrom = sourceNames.length > 0 ? sourceNames[0] : null;
+
+    const evolvesTo = Object.freeze(
+      extractEvolutionIds(item)
+        .map((eid) => idToName.get(eid))
+        .filter((n): n is string => n !== undefined)
+    );
+
     entries.push({
       name,
       primaryType: toType(primaryTypeName),
       secondaryType: secondaryTypeName ? toType(secondaryTypeName) : null,
       stats,
+      evolvesFrom,
+      evolvesTo,
     });
   }
 

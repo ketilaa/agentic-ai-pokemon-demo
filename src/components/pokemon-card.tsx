@@ -1,5 +1,6 @@
 import Box from '@mui/material/Box';
 import Card from '@mui/material/Card';
+import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import type { PokemonStats, PokemonType, StatMaxima } from '@/domain/pokemon-catalog';
 
@@ -9,6 +10,9 @@ interface Props {
   secondaryType: PokemonType | null;
   stats: PokemonStats;
   statMaxima: StatMaxima;
+  evolvesFrom: string | null;
+  evolvesTo: readonly string[];
+  onSelect: (name: string) => void;
 }
 
 function textColor(hex: string): string {
@@ -57,7 +61,7 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
   );
 }
 
-export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima }: Props) {
+export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, onSelect }: Props) {
   const background = secondaryType
     ? `linear-gradient(135deg, ${primaryType.color} 65%, ${secondaryType.color} 65%)`
     : primaryType.color;
@@ -77,6 +81,41 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       </Box>
       <Box data-testid="card-content-section" sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
+        {(evolvesFrom !== null || evolvesTo.length > 0) && (
+          <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>
+            {evolvesFrom !== null && (
+              <Box data-testid="evolves-from-section" sx={{ mb: evolvesTo.length > 0 ? 1 : 0 }}>
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                  Evolves from
+                </Typography>
+                <Chip
+                  label={evolvesFrom}
+                  size="small"
+                  clickable
+                  onClick={() => onSelect(evolvesFrom)}
+                />
+              </Box>
+            )}
+            {evolvesTo.length > 0 && (
+              <Box data-testid="evolves-to-section">
+                <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
+                  Evolves to
+                </Typography>
+                <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                  {evolvesTo.map((evoName) => (
+                    <Chip
+                      key={evoName}
+                      label={evoName}
+                      size="small"
+                      clickable
+                      onClick={() => onSelect(evoName)}
+                    />
+                  ))}
+                </Box>
+              </Box>
+            )}
+          </Box>
+        )}
       </Box>
     </Card>
   );

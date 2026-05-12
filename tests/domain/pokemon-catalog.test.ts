@@ -226,6 +226,119 @@ describe('parsePokemonData - entries', () => {
   });
 });
 
+const makeEvoEntry = (
+  id: string,
+  english: string,
+  primary: string,
+  evolutionIds: string[] = [],
+  stats = DEFAULT_STATS
+) => ({
+  id,
+  names: { English: english },
+  primaryType: { names: { English: primary } },
+  secondaryType: null,
+  stats,
+  evolutions: evolutionIds.map((eid) => ({ id: eid })),
+});
+
+describe('parsePokemonData - evolution chain (spec 0007 AC-01 to AC-06)', () => {
+  it('AC-01: each PokemonEntry has evolvesFrom (string|null) and evolvesTo (string[])', () => {
+    const raw = [makeEvoEntry('BULBASAUR', 'Bulbasaur', 'Grass')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0]).toHaveProperty('evolvesFrom');
+    expect(entries[0]).toHaveProperty('evolvesTo');
+    expect(typeof entries[0].evolvesFrom === 'string' || entries[0].evolvesFrom === null).toBe(true);
+    expect(Array.isArray(entries[0].evolvesTo)).toBe(true);
+  });
+
+  it('AC-02: base-stage Pokémon has evolvesFrom null and evolvesTo with its direct evolution', () => {
+    const raw = [
+      makeEvoEntry('BULBASAUR', 'Bulbasaur', 'Grass', ['IVYSAUR']),
+      makeEvoEntry('IVYSAUR', 'Ivysaur', 'Grass'),
+    ];
+    const bulbasaur = parsePokemonData(raw).entries.find((e) => e.name === 'Bulbasaur')!;
+    expect(bulbasaur.evolvesFrom).toBeNull();
+    expect(bulbasaur.evolvesTo).toEqual(['Ivysaur']);
+  });
+
+  it('AC-03: mid-stage Pokémon has correct evolvesFrom and evolvesTo', () => {
+    const raw = [
+      makeEvoEntry('BULBASAUR', 'Bulbasaur', 'Grass', ['IVYSAUR']),
+      makeEvoEntry('IVYSAUR', 'Ivysaur', 'Grass', ['VENUSAUR']),
+      makeEvoEntry('VENUSAUR', 'Venusaur', 'Grass'),
+    ];
+    const ivysaur = parsePokemonData(raw).entries.find((e) => e.name === 'Ivysaur')!;
+    expect(ivysaur.evolvesFrom).toBe('Bulbasaur');
+    expect(ivysaur.evolvesTo).toEqual(['Venusaur']);
+  });
+
+  it('AC-04: final-stage Pokémon has evolvesFrom set and evolvesTo empty', () => {
+    const raw = [
+      makeEvoEntry('BULBASAUR', 'Bulbasaur', 'Grass', ['IVYSAUR']),
+      makeEvoEntry('IVYSAUR', 'Ivysaur', 'Grass', ['VENUSAUR']),
+      makeEvoEntry('VENUSAUR', 'Venusaur', 'Grass'),
+    ];
+    const venusaur = parsePokemonData(raw).entries.find((e) => e.name === 'Venusaur')!;
+    expect(venusaur.evolvesFrom).toBe('Ivysaur');
+    expect(venusaur.evolvesTo).toEqual([]);
+  });
+
+  it('AC-05: Pokémon with multiple evolution targets has all successors in evolvesTo', () => {
+    const raw = [
+      makeEvoEntry('EEVEE', 'Eevee', 'Normal', ['VAPOREON', 'JOLTEON', 'FLAREON']),
+      makeEvoEntry('VAPOREON', 'Vaporeon', 'Water'),
+      makeEvoEntry('JOLTEON', 'Jolteon', 'Electric'),
+      makeEvoEntry('FLAREON', 'Flareon', 'Fire'),
+    ];
+    const eevee = parsePokemonData(raw).entries.find((e) => e.name === 'Eevee')!;
+    expect(eevee.evolvesTo).toHaveLength(3);
+    expect(eevee.evolvesTo).toContain('Vaporeon');
+    expect(eevee.evolvesTo).toContain('Jolteon');
+    expect(eevee.evolvesTo).toContain('Flareon');
+  });
+
+  it('AC-06: standalone Pokémon has evolvesFrom null and evolvesTo empty', () => {
+    const raw = [makeEvoEntry('SNORLAX', 'Snorlax', 'Normal')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].evolvesFrom).toBeNull();
+    expect(entries[0].evolvesTo).toEqual([]);
+  });
+
+  it('evolvesTo preserves dataset order (spec 0007 section 3.1)', () => {
+    const raw = [
+      makeEvoEntry('EEVEE', 'Eevee', 'Normal', ['VAPOREON', 'JOLTEON', 'FLAREON']),
+      makeEvoEntry('VAPOREON', 'Vaporeon', 'Water'),
+      makeEvoEntry('JOLTEON', 'Jolteon', 'Electric'),
+      makeEvoEntry('FLAREON', 'Flareon', 'Fire'),
+    ];
+    const eevee = parsePokemonData(raw).entries.find((e) => e.name === 'Eevee')!;
+    expect([...eevee.evolvesTo]).toEqual(['Vaporeon', 'Jolteon', 'Flareon']);
+  });
+
+  it('silently omits evolution targets absent from the dataset', () => {
+    const raw = [makeEvoEntry('BULBASAUR', 'Bulbasaur', 'Grass', ['MISSING_POKEMON'])];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].evolvesTo).toEqual([]);
+  });
+
+  it('entries without an id field have evolvesFrom null and evolvesTo empty', () => {
+    const raw = [makeEntry('Charmander', 'Fire')];
+    const { entries } = parsePokemonData(raw);
+    expect(entries[0].evolvesFrom).toBeNull();
+    expect(entries[0].evolvesTo).toEqual([]);
+  });
+
+  it('de-duplicates evolvesFrom when multiple form entries share the same English name and target', () => {
+    const raw = [
+      { id: 'DUNSPARCE', names: { English: 'Dunsparce' }, primaryType: { names: { English: 'Normal' } }, secondaryType: null, stats: DEFAULT_STATS, evolutions: [{ id: 'DUDUNSPARCE' }] },
+      { id: 'DUNSPARCE_TWO_SEGMENT', names: { English: 'Dunsparce' }, primaryType: { names: { English: 'Normal' } }, secondaryType: null, stats: DEFAULT_STATS, evolutions: [{ id: 'DUDUNSPARCE' }] },
+      { id: 'DUDUNSPARCE', names: { English: 'Dudunsparce' }, primaryType: { names: { English: 'Normal' } }, secondaryType: null, stats: DEFAULT_STATS, evolutions: [] },
+    ];
+    const dudunsparce = parsePokemonData(raw).entries.find((e) => e.name === 'Dudunsparce')!;
+    expect(dudunsparce.evolvesFrom).toBe('Dunsparce');
+  });
+});
+
 describe('parsePokemonData - count and errors', () => {
   it('returns the count of entries in the array', () => {
     const raw = [{ id: 'BULBASAUR' }, { id: 'IVYSAUR' }, { id: 'VENUSAUR' }];
