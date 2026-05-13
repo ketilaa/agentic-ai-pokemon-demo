@@ -32,19 +32,21 @@ This iteration amends the elite distinction from "any subtle visual cue" to "ita
 ### 3.1 Recommended Quick move
 
 - At most one quick move per Pokémon is designated as recommended.
-- The recommended quick move is the move with the strongest energy-generation attribute among the Pokémon's quick move pool, as determined from the existing build-time move dataset.
+- The recommended quick move is the move with the highest value of the top-level `energy` field in the build-time move dataset (energy generated per use in gym and raid battles). The `combat.energy` field is not used for this determination.
 - When the quick move pool contains exactly one move, that move is recommended.
 - When the quick move pool is empty, no quick move is recommended.
-- When multiple moves are tied on the energy-generation attribute, the developer must apply a stable tiebreaker (such as alphabetical order by move name) so that recommendation is deterministic across builds.
+- When multiple moves are tied on the `energy` field, the developer must apply a stable tiebreaker (such as alphabetical order by move name) so that recommendation is deterministic across builds.
+- Recommendation is computed at parse time. The result is stored as `isRecommended: boolean` on `MoveEntry`. The raw `energy` value used for determination must not be carried through to `MoveEntry` or to the rendered component.
 - The recommended status of a move is a property of the build-time dataset, not of player state. All players see the same recommendation for a given Pokémon.
 
 ### 3.2 Recommended Charged move
 
 - At most one charged move per Pokémon is designated as recommended.
-- The recommended charged move is the move with the highest base power attribute among the Pokémon's charged move pool, as determined from the existing build-time move dataset.
+- The recommended charged move is the move with the highest value of the top-level `power` field in the build-time move dataset. The `combat.power` field is not used for this determination.
 - When the charged move pool contains exactly one move, that move is recommended.
 - When the charged move pool is empty, no charged move is recommended.
-- When multiple moves are tied on the base power attribute, the developer must apply a stable tiebreaker (such as alphabetical order by move name).
+- When multiple moves are tied on the `power` field, the developer must apply a stable tiebreaker (such as alphabetical order by move name).
+- Recommendation is computed at parse time. The result is stored as `isRecommended: boolean` on `MoveEntry`. The raw `power` value used for determination must not be carried through to `MoveEntry` or to the rendered component.
 - Elite status does not affect recommendation eligibility. A move may be recommended regardless of whether it is Elite.
 
 ### 3.3 Recommended move visual emphasis
@@ -92,7 +94,7 @@ All functional behavior specified in Spec 0013 remains unchanged:
 - Omission of unresolvable move identifiers with a build-time warning (§3.1).
 - Quick moves group: union of regular and elite quick moves, one item per unique move (§3.2).
 - Charged moves group: union of regular and elite charged moves, one item per unique move (§3.3).
-- Move item data attributes: `data-move-name`, `data-move-type`, `data-is-elite` (§3.4).
+- Move item data attributes: `data-move-name`, `data-move-type`, `data-is-elite`, `data-is-recommended` (§3.4, §3.3).
 - Type color derived from `TYPE_COLORS` registry; no type label on move items (§3.4).
 - No numeric move statistics anywhere in the move section (§3.4).
 - Group labels: "Quick moves" and "Charged moves", present only when the corresponding group is present (§3.6).
@@ -170,7 +172,7 @@ All functional behavior specified in Spec 0013 remains unchanged:
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-15 | A move that is both Elite and recommended carries `data-is-elite="true"` and `data-is-recommended="true"`. | If a Pokémon's dataset contains a move that qualifies as both (top energy-generator or highest-power and Elite), confirm both attributes are set to `"true"` on the same `move-item`. |
+| AC-15 | A move that is both Elite and recommended carries `data-is-elite="true"` and `data-is-recommended="true"`. | Identify a Pokémon whose highest-`energy` quick move or highest-`power` charged move is also in an elite collection; confirm both attributes are set to `"true"` on the same `move-item`. If no such Pokémon exists in the live dataset, a test fixture with a Pokémon whose top-energy quick move or top-power charged move is also an Elite move must be introduced to verify this criterion. |
 | AC-16 | A move that is both Elite and recommended renders its name in italic with the recommended emphasis applied; neither signal obscures the move name. | Render such a Pokémon; confirm the move name is legible, italicized, and visually emphasized. (Manual QA) |
 | AC-17 | The Elite italic signal is less visually prominent than the recommended emphasis signal. | Render a Pokémon with an Elite non-recommended move and a non-Elite recommended move; confirm the recommended move draws the eye before the Elite move. (Manual QA) |
 
@@ -185,7 +187,7 @@ All functional behavior specified in Spec 0013 remains unchanged:
 | # | Criterion | How to verify |
 |---|-----------|---------------|
 | AC-19 | No numeric move statistic (damage, energy, cooldown, duration, or derived value) appears inside `move-section`. | Inspect all text nodes inside `move-section`; confirm none contain numeric content corresponding to a move statistic. |
-| AC-20 | No text explaining the recommended emphasis or the Elite italic appears anywhere on the card. | Search all rendered text nodes on the card; confirm no substring matches phrases such as "best", "recommended", "Elite", "Elite TM", "energy", "damage", or equivalent explanatory language. |
+| AC-20 | No explanatory text about the recommended emphasis or the Elite italic appears anywhere on the card. | Inspect all elements outside `move-item` boundaries within `move-section`; confirm no element contains prose, labels, or headings that explain what the visual signals mean (e.g. "recommended", "best move", "Elite TM required"). Text content within `move-item` elements is excluded from this check, as move names may coincidentally contain common words. |
 
 ### Visual hierarchy (Manual QA)
 
@@ -204,9 +206,11 @@ All functional behavior specified in Spec 0013 remains unchanged:
 
 ## 7. Risks
 
-- **Move attribute availability for recommendation.** Determining the recommended quick move requires an energy-generation attribute per move, and the recommended charged move requires a base power attribute. The developer must verify that these attributes are present in the existing build-time move dataset. If either attribute is absent for any move, a fallback strategy (such as treating absent values as zero, or falling back to alphabetical order) must be defined and applied consistently.
+- **`MoveEntry` domain model extension.** The current `MoveEntry` interface carries only `name`, `typeId`, and `isElite`. This iteration requires adding `isRecommended: boolean` to `MoveEntry`. The raw `energy` and `power` values used to compute recommendation must be consumed during parsing and must not be added to `MoveEntry` or passed to any component. The developer must extend `MoveEntry`, update `parsePokemonData` to compute and set `isRecommended`, and verify that no existing consumers of `MoveEntry` are broken by the new field.
 
-- **Energy-generation semantics.** Quick move energy generation may be represented as a net energy delta per use rather than per second. The spec does not prescribe the exact attribute name — the developer must identify the correct attribute and document the interpretation. If the attribute behaves unexpectedly for a subset of moves (e.g. moves that drain energy rather than generate it), the developer must raise a spec revision before building.
+- **Move attribute availability for recommendation.** The top-level `energy` field must be present for every quick move, and the top-level `power` field must be present for every charged move in the build-time dataset. If either attribute is absent for any move, a fallback strategy (such as treating absent values as zero, or falling back to alphabetical order) must be defined and applied consistently. The developer must verify attribute completeness before building.
+
+- **Energy-generation semantics.** The top-level `energy` field for quick moves represents energy generated per activation (a positive integer). This is distinct from `combat.energy`, which reflects PvP energy mechanics and is not used here. If any quick move in the dataset has a zero or negative `energy` value — indicating it does not generate energy in the gym/raid context — the developer must raise a spec revision before building, as the recommendation logic assumes a positive energy-generation value exists for at least one move in the pool.
 
 - **Recommendation stability across dataset versions.** If the dataset changes between builds (e.g. a move's power value is corrected), the recommended move for a Pokémon may change. This is expected and acceptable — the card reflects the current dataset. No caching or pinning of recommendation state is required.
 
