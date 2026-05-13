@@ -482,13 +482,13 @@ describe('PokemonCard – move list (spec 0013)', () => {
   // AC-27 (stat bar dominance), AC-28 (375px overflow), and AC-30 (next build) require manual QA.
 
   const QUICK_MOVES: MoveEntry[] = [
-    { name: 'Air Slash', typeId: 'Flying', isElite: false },
-    { name: 'Ember', typeId: 'Fire', isElite: true },
+    { name: 'Air Slash', typeId: 'Flying', isElite: false, isRecommended: true },
+    { name: 'Ember', typeId: 'Fire', isElite: true, isRecommended: false },
   ];
   const CHARGED_MOVES: MoveEntry[] = [
-    { name: 'Flamethrower', typeId: 'Fire', isElite: false },
-    { name: 'Dragon Claw', typeId: 'Dragon', isElite: false },
-    { name: 'Overheat', typeId: 'Fire', isElite: true },
+    { name: 'Flamethrower', typeId: 'Fire', isElite: false, isRecommended: false },
+    { name: 'Dragon Claw', typeId: 'Dragon', isElite: false, isRecommended: false },
+    { name: 'Overheat', typeId: 'Fire', isElite: true, isRecommended: true },
   ];
 
   // AC-01: move-section inside card-content-section
@@ -793,6 +793,189 @@ describe('PokemonCard – move list (spec 0013)', () => {
     expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();
     expect(screen.getByTestId('stat-bar-sta')).toBeInTheDocument();
     expect(screen.getByTestId('evolution-section')).toBeInTheDocument();
+  });
+});
+
+describe('PokemonCard – move recommendation and elite clarification (spec 0014)', () => {
+  // AC-07, AC-08, AC-10, AC-16, AC-17, AC-21, AC-22 require manual QA.
+
+  const QUICK_14: MoveEntry[] = [
+    { name: 'Ember', typeId: 'Fire', isElite: false, isRecommended: true },
+    { name: 'Air Slash', typeId: 'Flying', isElite: true, isRecommended: false },
+  ];
+  const CHARGED_14: MoveEntry[] = [
+    { name: 'Overheat', typeId: 'Fire', isElite: true, isRecommended: true },
+    { name: 'Dragon Claw', typeId: 'Dragon', isElite: false, isRecommended: false },
+    { name: 'Flamethrower', typeId: 'Fire', isElite: false, isRecommended: false },
+  ];
+
+  // AC-01: every move-item in quick-moves-group has data-is-recommended attribute
+  it('AC-01: every move-item in quick-moves-group carries data-is-recommended attribute', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={[]} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
+    for (const item of items) {
+      const val = item.getAttribute('data-is-recommended');
+      expect(val === 'true' || val === 'false').toBe(true);
+    }
+  });
+
+  // AC-02: exactly one quick move has data-is-recommended="true" when pool is non-empty
+  it('AC-02: exactly one move-item in quick-moves-group has data-is-recommended="true"', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={[]} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
+    expect(items.filter((i) => i.getAttribute('data-is-recommended') === 'true')).toHaveLength(1);
+  });
+
+  // AC-04: every move-item in charged-moves-group has data-is-recommended attribute
+  it('AC-04: every move-item in charged-moves-group carries data-is-recommended attribute', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    for (const item of items) {
+      const val = item.getAttribute('data-is-recommended');
+      expect(val === 'true' || val === 'false').toBe(true);
+    }
+  });
+
+  // AC-05: exactly one charged move has data-is-recommended="true" when pool is non-empty
+  it('AC-05: exactly one move-item in charged-moves-group has data-is-recommended="true"', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    expect(items.filter((i) => i.getAttribute('data-is-recommended') === 'true')).toHaveLength(1);
+  });
+
+  // AC-03: no data-is-recommended="true" in quick position when quick group is absent
+  it('AC-03: no move-item with data-is-recommended="true" in quick position when quick pool is empty', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('quick-moves-group')).not.toBeInTheDocument();
+    const allItems = within(screen.getByTestId('move-section')).getAllByTestId('move-item');
+    expect(allItems.every((i) => i.closest('[data-testid="charged-moves-group"]') !== null)).toBe(true);
+  });
+
+  // AC-06: no data-is-recommended="true" in charged position when charged group is absent
+  it('AC-06: no move-item with data-is-recommended="true" in charged position when charged pool is empty', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={[]} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('charged-moves-group')).not.toBeInTheDocument();
+  });
+
+  // AC-09: recommended emphasis contains no label, badge, icon, or explanatory text
+  it('AC-09: recommended move-item contains only the move name as text content', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const recommended = screen.getAllByTestId('move-item').filter((i) => i.getAttribute('data-is-recommended') === 'true');
+    for (const item of recommended) {
+      const moveName = item.getAttribute('data-move-name');
+      expect(item.textContent).toBe(moveName);
+    }
+  });
+
+  // AC-11: elite move renders name in italic style (data-is-elite="true")
+  it('AC-11: move-item with data-is-elite="true" has italic font style', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const eliteItems = screen.getAllByTestId('move-item').filter((i) => i.getAttribute('data-is-elite') === 'true');
+    for (const item of eliteItems) {
+      expect(item).toHaveStyle({ fontStyle: 'italic' });
+    }
+  });
+
+  // AC-12: non-elite move does not render in italic
+  it('AC-12: move-item with data-is-elite="false" does not have italic font style', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const nonEliteItems = screen.getAllByTestId('move-item').filter((i) => i.getAttribute('data-is-elite') === 'false');
+    for (const item of nonEliteItems) {
+      expect(item).not.toHaveStyle({ fontStyle: 'italic' });
+    }
+  });
+
+  // AC-13: no icon/badge/border element on elite move items
+  it('AC-13: data-is-elite="true" move-item has no child elements (no icon, badge, or decorative indicator)', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const eliteItems = screen.getAllByTestId('move-item').filter((i) => i.getAttribute('data-is-elite') === 'true');
+    for (const item of eliteItems) {
+      expect(item.children).toHaveLength(0);
+    }
+  });
+
+  // AC-14: no legend or label explaining elite status anywhere on the card
+  it('AC-14: no element explains the Elite or recommended status on the card', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByText(/elite/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/recommended/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/best move/i)).not.toBeInTheDocument();
+  });
+
+  // AC-15: a move can be both elite and recommended
+  it('AC-15: a move that is both elite and recommended carries both data-is-elite="true" and data-is-recommended="true"', () => {
+    const COMBINED: MoveEntry[] = [
+      { name: 'Overheat', typeId: 'Fire', isElite: true, isRecommended: true },
+      { name: 'Dragon Claw', typeId: 'Dragon', isElite: false, isRecommended: false },
+    ];
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={COMBINED} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    const overheat = items.find((i) => i.getAttribute('data-move-name') === 'Overheat');
+    expect(overheat?.getAttribute('data-is-elite')).toBe('true');
+    expect(overheat?.getAttribute('data-is-recommended')).toBe('true');
+  });
+
+  // AC-19: no numeric content in move-section
+  it('AC-19: no numeric content appears inside move-section', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const text = screen.getByTestId('move-section').textContent ?? '';
+    expect(text).not.toMatch(/\b\d+\b/);
+  });
+
+  // AC-20: no explanatory text about signals outside move-item boundaries
+  it('AC-20: move-section contains no explanatory text about recommendation or Elite outside move items', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_14} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
+    );
+    const moveSection = screen.getByTestId('move-section');
+    // Check all text nodes not inside a move-item
+    const allText = Array.from(moveSection.querySelectorAll('*'))
+      .filter((el) => !el.closest('[data-testid="move-item"]'))
+      .map((el) => el.textContent ?? '')
+      .join(' ');
+    expect(allText).not.toMatch(/elite/i);
+    expect(allText).not.toMatch(/recommended/i);
+    expect(allText).not.toMatch(/best/i);
   });
 });
 

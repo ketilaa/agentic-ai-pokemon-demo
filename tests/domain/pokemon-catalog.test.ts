@@ -395,10 +395,11 @@ describe('parsePokemonData - imageUrl (spec 0009 AC-04 to AC-07)', () => {
 });
 
 // Helper for move extraction tests
-function makeMove(typeEnglish: string, nameEnglish?: string) {
+function makeMove(typeEnglish: string, nameEnglish?: string, opts: { energy?: number; power?: number } = {}) {
   return {
     names: { English: nameEnglish ?? typeEnglish + ' Move' },
     type: { names: { English: typeEnglish } },
+    ...opts,
   };
 }
 
@@ -547,7 +548,160 @@ describe('parsePokemonData - move extraction (spec 0013)', () => {
       eliteQuickMoves: [],
     }];
     const { entries } = parsePokemonData(raw);
-    expect(() => { (entries[0].quickMoves as MoveEntry[]).push({ name: 'Hack', typeId: 'Fire', isElite: false }); }).toThrow();
+    expect(() => { (entries[0].quickMoves as MoveEntry[]).push({ name: 'Hack', typeId: 'Fire', isElite: false, isRecommended: false }); }).toThrow();
+  });
+});
+
+describe('parsePokemonData - move recommendation (spec 0014)', () => {
+  it('the single quick move is recommended when the pool has one entry', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: { EMBER_FAST: makeMove('Fire', 'Ember', { energy: 10 }) },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves[0].isRecommended).toBe(true);
+  });
+
+  it('the single charged move is recommended when the pool has one entry', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      cinematicMoves: { OVERHEAT: makeMove('Fire', 'Overheat', { power: 160 }) },
+      eliteCinematicMoves: [],
+    }];
+    const { chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(chargedMoves[0].isRecommended).toBe(true);
+  });
+
+  it('recommends the quick move with the highest energy field', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: {
+        EMBER_FAST: makeMove('Fire', 'Ember', { energy: 10 }),
+        TACKLE_FAST: makeMove('Normal', 'Tackle', { energy: 5 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Ember')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Tackle')?.isRecommended).toBe(false);
+  });
+
+  it('recommends the charged move with the highest power field', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      cinematicMoves: {
+        OVERHEAT: makeMove('Fire', 'Overheat', { power: 160 }),
+        FLAMETHROWER: makeMove('Fire', 'Flamethrower', { power: 90 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const { chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(chargedMoves.find((m) => m.name === 'Overheat')?.isRecommended).toBe(true);
+    expect(chargedMoves.find((m) => m.name === 'Flamethrower')?.isRecommended).toBe(false);
+  });
+
+  it('exactly one quick move is recommended when pool has multiple moves', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: {
+        A: makeMove('Fire', 'Ember', { energy: 10 }),
+        B: makeMove('Normal', 'Tackle', { energy: 5 }),
+        C: makeMove('Grass', 'Vine Whip', { energy: 7 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.filter((m) => m.isRecommended === true)).toHaveLength(1);
+  });
+
+  it('exactly one charged move is recommended when pool has multiple moves', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      cinematicMoves: {
+        A: makeMove('Fire', 'Overheat', { power: 160 }),
+        B: makeMove('Fire', 'Flamethrower', { power: 90 }),
+        C: makeMove('Dragon', 'Dragon Claw', { power: 50 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const { chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(chargedMoves.filter((m) => m.isRecommended === true)).toHaveLength(1);
+  });
+
+  it('tiebreaker selects the alphabetically first quick move when energy values are equal', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: {
+        Z: makeMove('Normal', 'Zen Headbutt', { energy: 10 }),
+        A: makeMove('Fire', 'Astonish', { energy: 10 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Astonish')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Zen Headbutt')?.isRecommended).toBe(false);
+  });
+
+  it('tiebreaker selects the alphabetically first charged move when power values are equal', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      cinematicMoves: {
+        Z: makeMove('Fire', 'Zap Cannon', { power: 100 }),
+        A: makeMove('Bug', 'Bug Buzz', { power: 100 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const { chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(chargedMoves.find((m) => m.name === 'Bug Buzz')?.isRecommended).toBe(true);
+    expect(chargedMoves.find((m) => m.name === 'Zap Cannon')?.isRecommended).toBe(false);
+  });
+
+  it('a move can be both elite and recommended', () => {
+    const raw = [{
+      ...makeEntry('Charizard', 'Fire', 'Flying'),
+      quickMoves: { AIR_SLASH_FAST: makeMove('Flying', 'Air Slash', { energy: 8 }) },
+      eliteQuickMoves: { EMBER_FAST: makeMove('Fire', 'Ember', { energy: 12 }) },
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    const ember = quickMoves.find((m) => m.name === 'Ember');
+    expect(ember?.isElite).toBe(true);
+    expect(ember?.isRecommended).toBe(true);
+  });
+
+  it('energy/power values do not appear on MoveEntry objects', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: { EMBER_FAST: makeMove('Fire', 'Ember', { energy: 10 }) },
+      eliteQuickMoves: [],
+    }];
+    const move = parsePokemonData(raw).entries[0].quickMoves[0] as unknown as Record<string, unknown>;
+    expect(move['energy']).toBeUndefined();
+    expect(move['power']).toBeUndefined();
+    expect(move['_stat']).toBeUndefined();
+  });
+
+  it('missing energy field defaults to 0 and the move is still recommended when pool has one entry', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: { EMBER_FAST: makeMove('Fire', 'Ember') },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves[0].isRecommended).toBe(true);
+  });
+
+  it('when quick pool is empty, the single charged move is still recommended', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: [],
+      eliteQuickMoves: [],
+      cinematicMoves: { OVERHEAT: makeMove('Fire', 'Overheat', { power: 160 }) },
+      eliteCinematicMoves: [],
+    }];
+    const { quickMoves, chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves).toHaveLength(0);
+    expect(chargedMoves[0].isRecommended).toBe(true);
   });
 });
 
