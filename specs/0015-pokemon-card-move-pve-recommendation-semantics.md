@@ -1,6 +1,6 @@
 # Spec 0015 – Pokémon Card Move PvE Recommendation Semantics
 
-**Status:** Revised  
+**Status:** Complete  
 **Iteration:** 15  
 **Author:** Architect agent  
 **Date:** 2026-05-13
