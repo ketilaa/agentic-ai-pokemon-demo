@@ -862,10 +862,7 @@ describe('PokemonCard – move recommendation and elite clarification (spec 0014
         evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_14} onSelect={jest.fn()} />
     );
     expect(screen.queryByTestId('quick-moves-group')).not.toBeInTheDocument();
-    // No quick-moves-group means no quick-position recommended item exists
     const allItems = within(screen.getByTestId('move-section')).getAllByTestId('move-item');
-    // All items are charged; quick group is absent — no recommended item in quick position
-    expect(screen.queryByTestId('quick-moves-group')).not.toBeInTheDocument();
     expect(allItems.every((i) => i.closest('[data-testid="charged-moves-group"]') !== null)).toBe(true);
   });
 

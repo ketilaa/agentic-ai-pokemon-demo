@@ -612,7 +612,7 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
       eliteQuickMoves: [],
     }];
     const { quickMoves } = parsePokemonData(raw).entries[0];
-    expect(quickMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(quickMoves.filter((m) => m.isRecommended === true)).toHaveLength(1);
   });
 
   it('exactly one charged move is recommended when pool has multiple moves', () => {
@@ -626,7 +626,7 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
       eliteCinematicMoves: [],
     }];
     const { chargedMoves } = parsePokemonData(raw).entries[0];
-    expect(chargedMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(chargedMoves.filter((m) => m.isRecommended === true)).toHaveLength(1);
   });
 
   it('tiebreaker selects the alphabetically first quick move when energy values are equal', () => {
@@ -691,7 +691,7 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
     expect(quickMoves[0].isRecommended).toBe(true);
   });
 
-  it('isRecommended is false for all non-quick moves when pool is empty', () => {
+  it('when quick pool is empty, the single charged move is still recommended', () => {
     const raw = [{
       ...makeEntry('A', 'Fire'),
       quickMoves: [],
@@ -701,7 +701,7 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
     }];
     const { quickMoves, chargedMoves } = parsePokemonData(raw).entries[0];
     expect(quickMoves).toHaveLength(0);
-    expect(chargedMoves.every((m) => m.isRecommended === true || m.isRecommended === false)).toBe(true);
+    expect(chargedMoves[0].isRecommended).toBe(true);
   });
 });
 

@@ -153,6 +153,9 @@ function extractMovesWithStat(collection: unknown, isElite: boolean, statField: 
       continue;
     }
     const raw = (move as Record<string, unknown>)[statField];
+    if (typeof raw !== 'number') {
+      console.warn(`Move "${name}" has no "${statField}" value; defaulting to 0 for recommendation`);
+    }
     const _stat = typeof raw === 'number' ? raw : 0;
     moves.push({ name, typeId, isElite, _stat });
   }
@@ -170,7 +173,7 @@ function mergeMoveEntries(regular: MoveDraft[], elite: MoveDraft[]): readonly Mo
 function applyRecommended(drafts: readonly MoveDraft[]): readonly MoveEntry[] {
   if (drafts.length === 0) return Object.freeze([]);
   const best = [...drafts].sort((a, b) =>
-    b._stat !== a._stat ? b._stat - a._stat : a.name.localeCompare(b.name)
+    b._stat !== a._stat ? b._stat - a._stat : a.name.localeCompare(b.name, 'en')
   )[0];
   return Object.freeze(
     drafts.map((m) =>
