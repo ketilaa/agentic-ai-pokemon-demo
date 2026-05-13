@@ -13,6 +13,7 @@ export interface MoveEntry {
   readonly name: string;
   readonly typeId: string;
   readonly isElite: boolean;
+  readonly isRecommended: boolean;
 }
 
 export interface PokemonEntry {
@@ -126,11 +127,20 @@ function extractTypeName(typeField: unknown): string | null {
   return typeof english === 'string' && english.length > 0 ? english : null;
 }
 
-function extractMovesFromCollection(collection: unknown, isElite: boolean): MoveEntry[] {
+// Internal-only; _stat carries energy (quick moves) or power (charged moves) for recommendation
+// and is consumed here — it never reaches MoveEntry or any component.
+interface MoveDraft {
+  readonly name: string;
+  readonly typeId: string;
+  readonly isElite: boolean;
+  readonly _stat: number;
+}
+
+function extractMovesWithStat(collection: unknown, isElite: boolean, statField: 'energy' | 'power'): MoveDraft[] {
   if (typeof collection !== 'object' || collection === null || Array.isArray(collection)) {
     return [];
   }
-  const moves: MoveEntry[] = [];
+  const moves: MoveDraft[] = [];
   for (const move of Object.values(collection as Record<string, unknown>)) {
     const name = extractEnglishName(move);
     const typeId = extractTypeName((move as Record<string, unknown>).type);
@@ -142,16 +152,31 @@ function extractMovesFromCollection(collection: unknown, isElite: boolean): Move
       console.warn(`Move "${name}" has no resolvable type; omitting from move list`);
       continue;
     }
-    moves.push({ name, typeId, isElite });
+    const raw = (move as Record<string, unknown>)[statField];
+    const _stat = typeof raw === 'number' ? raw : 0;
+    moves.push({ name, typeId, isElite, _stat });
   }
   return moves;
 }
 
-function mergeMoves(regular: MoveEntry[], elite: MoveEntry[]): readonly MoveEntry[] {
-  const seen = new Map<string, MoveEntry>();
+function mergeMoveEntries(regular: MoveDraft[], elite: MoveDraft[]): readonly MoveDraft[] {
+  const seen = new Map<string, MoveDraft>();
   for (const m of regular) seen.set(m.name, m);
   for (const m of elite) seen.set(m.name, m);
   return Object.freeze([...seen.values()]);
+}
+
+// Selects the recommended move (highest _stat; alphabetical tiebreaker) and returns frozen MoveEntry[].
+function applyRecommended(drafts: readonly MoveDraft[]): readonly MoveEntry[] {
+  if (drafts.length === 0) return Object.freeze([]);
+  const best = [...drafts].sort((a, b) =>
+    b._stat !== a._stat ? b._stat - a._stat : a.name.localeCompare(b.name)
+  )[0];
+  return Object.freeze(
+    drafts.map((m) =>
+      Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
+    )
+  );
 }
 
 export function parsePokemonData(raw: unknown): PokemonCatalog {
@@ -209,14 +234,14 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     );
 
     const rawItem = item as Record<string, unknown>;
-    const quickMoves = mergeMoves(
-      extractMovesFromCollection(rawItem.quickMoves, false),
-      extractMovesFromCollection(rawItem.eliteQuickMoves, true),
-    );
-    const chargedMoves = mergeMoves(
-      extractMovesFromCollection(rawItem.cinematicMoves, false),
-      extractMovesFromCollection(rawItem.eliteCinematicMoves, true),
-    );
+    const quickMoves = applyRecommended(mergeMoveEntries(
+      extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
+      extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
+    ));
+    const chargedMoves = applyRecommended(mergeMoveEntries(
+      extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
+      extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
+    ));
 
     entries.push({
       name,

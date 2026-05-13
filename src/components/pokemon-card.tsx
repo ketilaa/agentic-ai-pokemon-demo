@@ -94,6 +94,7 @@ function MoveGroup({
               data-move-name={move.name}
               data-move-type={move.typeId}
               data-is-elite={String(move.isElite)}
+              data-is-recommended={String(move.isRecommended)}
               sx={{
                 display: 'inline-block',
                 px: 0.75,
@@ -102,6 +103,7 @@ function MoveGroup({
                 bgcolor: alpha(color, 0.15),
                 fontSize: '0.7rem',
                 fontStyle: move.isElite ? 'italic' : 'normal',
+                fontWeight: move.isRecommended ? 700 : 400,
                 pointerEvents: 'none',
                 userSelect: 'none',
               }}
