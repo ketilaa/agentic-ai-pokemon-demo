@@ -44,7 +44,8 @@ The card is composed of four conceptual regions, each with a distinct visual res
 ### 3.2 Card header — type identity
 
 - The header background is derived from the primary type color.
-- The header type treatment is the strongest color expression on the card: its visual weight is perceptibly greater than the card container tint (if any exists) and markedly greater than the neutral content below.
+- The header type treatment is the strongest color expression on the card: its visual weight is perceptibly and markedly greater than the neutral content below.
+- The card container itself carries no type-derived background color. The header's tint is the sole interior type-color treatment on the card surface.
 - The Pokémon name appears in the header region.
 - The Pokémon name must be legible against the header background for all 18 type colors, including dark and saturated types.
 
@@ -64,6 +65,7 @@ The card is composed of four conceptual regions, each with a distinct visual res
 ### 3.5 Card media — optional image
 
 - When `imageUrl` is non-null, the card displays the Pokémon image within the media zone.
+- The media zone is a sibling region to the card header — it is not a child of the header, and does not share the header's type-colored background treatment.
 - The media zone carries no type-derived color treatment.
 - When `imageUrl` is null, no placeholder, reserved space, or empty region is rendered.
 
@@ -128,10 +130,10 @@ All behaviors and displayed content from prior iterations remain unchanged:
 | # | Criterion | How to verify |
 |---|-----------|---------------|
 | AC-04 | The card header carries a background treatment derived from the primary type color. | Inspect `data-header-tint-color` on the `card-header` element; confirm it equals the primary type's color value from `TYPE_COLORS`. |
-| AC-05 | The header background treatment is visually stronger than the content region background. | Inspect `data-header-tint-opacity` on the header and `data-content-tint-opacity` on the content; confirm the header value is strictly greater than the content value. |
-| AC-06 | The header type treatment exceeds a meaningful visibility threshold. | Inspect `data-header-tint-opacity` on the header; confirm the value is greater than `0.15`. |
+| AC-05 | The header type treatment does not exceed a saturation threshold. | Inspect `data-header-tint-opacity` on the `card-header` element; confirm the value is less than `0.5`. |
+| AC-06 | The header type treatment exceeds a meaningful visibility threshold. | Inspect `data-header-tint-opacity` on the `card-header` element; confirm the value is greater than `0.15`. |
 
-### Type communication — container border and secondary type
+### Type communication — container border, secondary type, and tint retirement
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
@@ -139,41 +141,42 @@ All behaviors and displayed content from prior iterations remain unchanged:
 | AC-08 | For a dual-type Pokémon, a secondary type accent is present on the card container and reflects the secondary type color. | Render a dual-type Pokémon; inspect `data-border-secondary-color` on the card container; confirm it equals the secondary type's color from `TYPE_COLORS`. |
 | AC-09 | For a single-type Pokémon, no secondary type accent is present on the card container. | Render a single-type Pokémon; inspect `data-border-secondary-color`; confirm it is empty, and `data-border-secondary-sides` is `0`. |
 | AC-10 | The primary type is visually dominant over the secondary type on the card container. | Render a dual-type Pokémon; inspect `data-border-primary-sides` and `data-border-secondary-sides`; confirm the primary count is strictly greater. |
+| AC-11 | The card container itself carries no type-derived background color. | Inspect `data-tint-opacity` on the `pokemon-card` element; confirm the value is `0`. |
 
 ### Content neutrality
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-11 | The content region carries no type-derived color treatment. | Inspect `data-content-tint-opacity` on the `card-content-section` element; confirm the value is `0`. |
-| AC-12 | The stat bars are present and retain their data attributes inside the content region. | Render any Pokémon; confirm `stat-bar-atk`, `stat-bar-def`, `stat-bar-sta` are present inside `card-content-section`. |
-| AC-13 | The evolution chain navigation (where applicable) is present inside the content region. | Render a mid-stage Pokémon; confirm `evolves-from-section` and `evolves-to-section` are inside `card-content-section`. |
+| AC-12 | The content region carries no type-derived color treatment. | Inspect `data-content-tint-opacity` on the `card-content-section` element; confirm the value is `0`. |
+| AC-13 | The stat bars are present and retain their data attributes inside the content region. | Render any Pokémon; confirm `stat-bar-atk`, `stat-bar-def`, `stat-bar-sta` are present inside `card-content-section`. |
+| AC-14 | The evolution chain navigation (where applicable) is present inside the content region. | Render a mid-stage Pokémon; confirm `evolves-from-section` and `evolves-to-section` are inside `card-content-section`. |
 
 ### Type label prohibition
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-14 | No type name or label appears anywhere on the card. | Select Pokémon with varied types; confirm no type name text (e.g., "Fire", "Water", "Grass") appears on the rendered card. |
-| AC-15 | No standalone type indicator (badge, chip, dot, icon, swatch) is rendered on the card. | Inspect the DOM; confirm no element whose sole purpose is to indicate type (testid or role such as `type-badge`, `type-chip`, `type-swatch`, `type-dot`) is present. |
+| AC-15 | No type name or label appears anywhere on the card. | Select Pokémon with varied types; confirm no type name text (e.g., "Fire", "Water", "Grass") appears on the rendered card. |
+| AC-16 | No standalone type indicator (badge, chip, dot, icon, swatch) is rendered on the card. | Inspect the DOM; confirm no element whose sole purpose is to indicate type (testid or role such as `type-badge`, `type-chip`, `type-swatch`, `type-dot`) is present. |
 
 ### Legibility
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-16 | The Pokémon name is legible in the header for dark and saturated types. | Render Pokémon of types Dragon, Ghost, Poison, and Dark; confirm the name text is readable against each header background. |
-| AC-17 | The stat bars are legible in the content region — visually distinct from the neutral content background. | Render any Pokémon; confirm the stat bars are visually distinguishable from the content background. |
+| AC-17 | The Pokémon name is legible in the header for dark and saturated types. | Render Pokémon of types Dragon, Ghost, Poison, and Dark; confirm the name text is readable against each header background. (Manual QA) |
+| AC-18 | The stat bars are legible in the content region — visually distinct from the neutral content background. | Render any Pokémon; confirm the stat bars are visually distinguishable from the content background. (Manual QA) |
 
 ### Image and media
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-18 | When `imageUrl` is non-null, the image element is present on the card. | Render a Pokémon with a known non-null `imageUrl`; confirm testid `pokemon-image` is present. |
-| AC-19 | When `imageUrl` is null, no image element or placeholder is rendered. | Render a Pokémon with `imageUrl` null; confirm testid `pokemon-image` is absent. |
+| AC-19 | When `imageUrl` is non-null, the image element is present on the card and is not a child of the header region. | Render a Pokémon with a known non-null `imageUrl`; confirm testid `pokemon-image` is present and is not nested inside `card-header`. |
+| AC-20 | When `imageUrl` is null, no image element or placeholder is rendered. | Render a Pokémon with `imageUrl` null; confirm testid `pokemon-image` is absent. |
 
 ### Build and static export
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-20 | Running `next build` produces a static export with no server-dependent artefacts. | Run `next build`; confirm `out/` contains only static files. |
+| AC-21 | Running `next build` produces a static export with no server-dependent artefacts. | Run `next build`; confirm `out/` contains only static files. |
 
 ---
 
@@ -189,7 +192,9 @@ All behaviors and displayed content from prior iterations remain unchanged:
 
 - **`card-title-section` testid retirement.** Current tests reference `data-testid="card-title-section"` for the name region. This iteration renames that region to `card-header` to reflect its expanded structural role. Existing tests that assert on `card-title-section` must be updated or removed. The old testid must not remain as dead or conflicting test state after the migration.
 
-- **Tint weight calibration.** The header tint must exceed the 0.15 threshold required by AC-06, while still reading as restrained and non-ornamental per the design constraints. The content must be at exactly 0. These values must be explicitly set and surfaced as data attributes for testability.
+- **`data-tint-opacity` and `data-tint-color` migration.** Current tests assert that `data-tint-opacity` on the card container is non-zero and less than `0.15` (Spec 0008 AC-02, AC-03, AC-19). This iteration sets the card-level tint to `0` (AC-11). Existing tests that assert a non-zero `data-tint-opacity` on the card container must be updated to reflect the new value. They must not be left as passing-but-wrong tests by leaving `data-tint-opacity` set to its old value while visually applying the tint elsewhere.
+
+- **Tint weight calibration.** The header tint must fall within the range defined by AC-05 and AC-06: strictly greater than `0.15` and strictly less than `0.5`. The card container and content must both be exactly `0`. These values must be explicitly set and surfaced as data attributes for testability.
 
 ---
 
