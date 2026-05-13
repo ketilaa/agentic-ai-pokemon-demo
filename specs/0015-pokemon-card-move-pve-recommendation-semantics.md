@@ -1,6 +1,6 @@
 # Spec 0015 – Pokémon Card Move PvE Recommendation Semantics
 
-**Status:** Draft  
+**Status:** Revised  
 **Iteration:** 15  
 **Author:** Architect agent  
 **Date:** 2026-05-13
@@ -60,13 +60,15 @@ All else being equal, a lower energy cost is preferable.
 
 **Factor 3 – Same-type attack bonus (STAB)**
 
-A Charged move whose type matches one of the Pokémon's own types benefits from STAB in all gym and raid encounters. This bonus amplifies the move's practical output and must be treated as a positive viability factor. When two moves pass feasibility and energy-efficiency considerations comparably, the STAB move is preferred.
+A Charged move whose type matches one of the Pokémon's own types benefits from STAB in all gym and raid encounters. This bonus amplifies the move's practical output and must be treated as a positive viability factor. When no clear winner emerges from factors 1 and 2 — that is, when neither feasibility nor energy efficiency substantially favors one move over another — the STAB move is preferred over a non-STAB move.
+
+STAB is a meaningful advantage within a comparable power range. When a non-STAB Charged move has substantially higher base power and the gap is large enough that a 20% STAB multiplier would not overcome it in practice, base power takes precedence. STAB is not a categorical override of raw power — it is a practical correction for moves that are otherwise close.
 
 STAB does not override Factor 1 or Factor 2. A STAB move with very high energy cost is not recommended for a low-survivability Pokémon when a lower-cost alternative exists.
 
 **Factor 4 – Base power**
 
-Raw base power remains a consideration. Among moves that pass factors 1–3 comparably, the higher-power move is preferred. Base power must not cause a move that fails survivability or energy-efficiency checks to be recommended over one that passes them.
+Raw base power remains a consideration. Among moves where factors 1–3 do not yield a clear winner, the higher-power move is preferred. Base power must not cause a move that fails survivability or energy-efficiency checks to be recommended over one that passes them.
 
 **Tiebreaking**
 
@@ -92,7 +94,7 @@ All visual and structural behavior from Iteration 14 is preserved without change
 
 ### 3.4 Preserved behaviors from prior iterations
 
-All functional behavior from Iterations 13 and 14 is preserved, except that the Iteration 14 criterion for Charged move recommendation (highest `power` field) is superseded by §3.2 of this spec.
+All functional behavior from Iterations 13 and 14 is preserved, except that the Spec 0014 §3.2 criterion for Charged move recommendation (highest `power` field) is superseded by §3.2 of this spec.
 
 ---
 
@@ -136,20 +138,20 @@ All functional behavior from Iterations 13 and 14 is preserved, except that the 
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-02 | A Pokémon with demonstrably low survivability (base stamina substantially below the dataset average) that has both a charged move with very high energy cost and at least one charged move with moderate or low energy cost does not receive `data-is-recommended="true"` on the very high energy cost move. | Identify at least two Pokémon in the live dataset satisfying: (a) base stamina among the lowest in the dataset, (b) charged move pool includes a move with energy cost ≥ 75, and (c) charged move pool also includes at least one move with energy cost ≤ 50. Render each Pokémon; confirm the move with energy cost ≥ 75 does not carry `data-is-recommended="true"`. |
+| AC-02 | A Pokémon with demonstrably low survivability (base stamina substantially below the dataset average) that has both a charged move with very high energy cost and at least one charged move with moderate or low energy cost does not receive `data-is-recommended="true"` on the very high energy cost move. | Identify at least two Pokémon in the live dataset satisfying: (a) base stamina among the lowest in the dataset, (b) charged move pool includes a move with energy cost ≥ 75, and (c) charged move pool also includes at least one move with energy cost ≤ 50. Render each Pokémon; confirm the move with energy cost ≥ 75 does not carry `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture satisfying all three conditions. |
 | AC-03 | When a low-survivability Pokémon's charged move pool contains only moves with high energy cost (no lower-cost alternative exists), a move may be recommended. | Identify a Pokémon with low survivability whose entire charged move pool consists of moves with energy cost ≥ 75. Confirm that exactly one charged move carries `data-is-recommended="true"` (no pool is left without a recommendation when there is no viable alternative). |
 
 ### Charged move recommendation — energy efficiency
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-04 | Among two Charged moves of the same type and comparable power, the move with lower energy cost receives `data-is-recommended="true"`. | Identify a Pokémon with at least two same-type Charged moves where one has noticeably lower energy cost and comparable power to the other. Render the Pokémon; confirm the lower-cost move carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
+| AC-04 | Among two Charged moves of the same type where power is not the primary differentiator, the move with lower energy cost receives `data-is-recommended="true"`. | Identify a Pokémon with at least two same-type Charged moves where one has noticeably lower energy cost and the power difference is not large enough to be the primary differentiator. Render the Pokémon; confirm the lower-cost move carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
 
 ### Charged move recommendation — STAB consideration
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-05 | When a Pokémon has a STAB Charged move and a non-STAB Charged move with comparable energy cost and comparable base power, the STAB move receives `data-is-recommended="true"`. | Identify a Pokémon with at least one Charged move matching one of its types (STAB) and at least one Charged move not matching any of its types (non-STAB), where both moves have comparable energy cost (within the same energy cost tier) and comparable power (within a range where STAB would be the deciding factor). Render the Pokémon; confirm the STAB move carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
+| AC-05 | When a Pokémon has a STAB Charged move and a non-STAB Charged move with similar energy cost and close base power, the STAB move receives `data-is-recommended="true"`. | Identify a Pokémon with at least one Charged move matching one of its types (STAB) and at least one Charged move not matching any of its types (non-STAB), where: (a) energy costs are similar and neither clearly favors the other on energy efficiency, and (b) the STAB move has lower raw base power than the non-STAB move but the power gap is small enough that a 20% STAB multiplier on the STAB move's power would overcome it. Render the Pokémon; confirm the STAB move carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
 | AC-06 | STAB does not override feasibility: a STAB Charged move with very high energy cost is not recommended for a low-survivability Pokémon when a non-STAB lower-cost alternative exists. | Identify or construct a test fixture representing a low-survivability Pokémon whose STAB Charged move has energy cost ≥ 75 and whose non-STAB Charged move has energy cost ≤ 50. Render the Pokémon; confirm the non-STAB lower-cost move carries `data-is-recommended="true"`, not the STAB high-cost move. |
 
 ### Charged move recommendation — base power subordinate to feasibility
