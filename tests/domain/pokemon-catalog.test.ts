@@ -552,7 +552,7 @@ describe('parsePokemonData - move extraction (spec 0013)', () => {
   });
 });
 
-describe('parsePokemonData - move recommendation (spec 0014)', () => {
+describe('parsePokemonData - move recommendation (spec 0014 / spec 0015)', () => {
   it('the single quick move is recommended when the pool has one entry', () => {
     const raw = [{
       ...makeEntry('A', 'Fire'),
@@ -587,7 +587,9 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
     expect(quickMoves.find((m) => m.name === 'Tackle')?.isRecommended).toBe(false);
   });
 
-  it('recommends the charged move with the highest power field', () => {
+  it('recommends the higher-power charged move when energy costs and STAB are equal (spec 0015 Factor 4)', () => {
+    // Both moves are Fire-type on a Fire Pokémon (both STAB, both no energy cost set → 0).
+    // Factor 4 selects the higher-power move.
     const raw = [{
       ...makeEntry('A', 'Fire'),
       cinematicMoves: {
@@ -643,12 +645,14 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
     expect(quickMoves.find((m) => m.name === 'Zen Headbutt')?.isRecommended).toBe(false);
   });
 
-  it('tiebreaker selects the alphabetically first charged move when power values are equal', () => {
+  it('tiebreaker selects the alphabetically first charged move when all factors are equal', () => {
+    // Both moves are non-STAB for this Fire Pokémon and have identical energy cost and power.
+    // Only the alphabetical tiebreaker differentiates them.
     const raw = [{
       ...makeEntry('A', 'Fire'),
       cinematicMoves: {
-        Z: makeMove('Fire', 'Zap Cannon', { power: 100 }),
-        A: makeMove('Bug', 'Bug Buzz', { power: 100 }),
+        Z: makeMove('Electric', 'Zap Cannon', { power: 100, energy: -100 }),
+        A: makeMove('Bug',      'Bug Buzz',   { power: 100, energy: -100 }),
       },
       eliteCinematicMoves: [],
     }];
@@ -702,6 +706,170 @@ describe('parsePokemonData - move recommendation (spec 0014)', () => {
     const { quickMoves, chargedMoves } = parsePokemonData(raw).entries[0];
     expect(quickMoves).toHaveLength(0);
     expect(chargedMoves[0].isRecommended).toBe(true);
+  });
+});
+
+describe('parsePokemonData - charged move PvE recommendation (spec 0015)', () => {
+  // Dataset helper: 3 high-survivability Pokémon + the subject Pokémon.
+  // With 3 tanks (sta=400, def=300, combined=700) and subject (sta=70, def=50, combined=120):
+  //   mean = (700*3 + 120) / 4 = 555 → fragile threshold = 0.65 * 555 ≈ 360
+  //   subject combined 120 ≤ 360 → IS fragile; tanks 700 > 360 → NOT fragile.
+  const makeTankEntry = (name: string) => ({
+    ...makeEntry(name, 'Water', undefined, { attack: 150, defense: 300, stamina: 400 }),
+  });
+  const makeFragileEntry = (name: string, primary: string, secondary?: string) =>
+    makeEntry(name, primary, secondary, { attack: 200, defense: 50, stamina: 70 });
+  const withFragile = (fragileEntry: object, moves: object) => [
+    makeTankEntry('Tank1'),
+    makeTankEntry('Tank2'),
+    makeTankEntry('Tank3'),
+    { ...fragileEntry, ...moves },
+  ];
+
+  // — Factor 1: survivability-adjusted feasibility —
+
+  it('Factor 1: fragile Pokémon does not have very high energy cost move recommended when a lower-cost alternative exists', () => {
+    const dataset = withFragile(makeFragileEntry('Frail', 'Normal'), {
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        HIGH: makeMove('Normal', 'Hyper Beam', { power: 150, energy: -100 }),
+        LOW:  makeMove('Normal', 'Body Slam',  { power:  60, energy:  -33 }),
+      },
+      eliteCinematicMoves: [],
+    });
+    const frail = parsePokemonData(dataset).entries.find((e) => e.name === 'Frail')!;
+    expect(frail.chargedMoves.find((m) => m.name === 'Hyper Beam')?.isRecommended).toBe(false);
+    expect(frail.chargedMoves.find((m) => m.name === 'Body Slam')?.isRecommended).toBe(true);
+  });
+
+  it('Factor 1: fragile Pokémon with only high-cost moves still has exactly one move recommended', () => {
+    const dataset = withFragile(makeFragileEntry('Frail2', 'Normal'), {
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        A: makeMove('Normal', 'Hyper Beam',  { power: 150, energy: -100 }),
+        B: makeMove('Normal', 'Giga Impact', { power: 200, energy: -100 }),
+      },
+      eliteCinematicMoves: [],
+    });
+    const frail = parsePokemonData(dataset).entries.find((e) => e.name === 'Frail2')!;
+    expect(frail.chargedMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+  });
+
+  it('Factor 1: non-fragile Pokémon can have the higher-power move recommended when energy costs are equal', () => {
+    // Single entry → mean = 200, threshold = 130; combined = 200 > 130 → NOT fragile.
+    const raw = [{
+      ...makeEntry('Tank', 'Normal'),
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        A: makeMove('Normal', 'Hyper Beam', { power: 150, energy: -100 }),
+        B: makeMove('Normal', 'Body Slam',  { power:  50, energy: -100 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const pokemon = parsePokemonData(raw).entries[0];
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Hyper Beam')?.isRecommended).toBe(true);
+  });
+
+  // — Factor 2: energy efficiency —
+
+  it('Factor 2: lower energy cost move recommended over high-cost move when power is not the primary differentiator', () => {
+    // Single non-fragile entry (combined 200 > threshold 130).
+    // 50-energy move beats 100-energy move on Factor 2 even though power is lower.
+    const raw = [{
+      ...makeEntry('Mon', 'Fire'),
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        A: makeMove('Fire', 'Overheat',      { power: 110, energy: -100 }),
+        B: makeMove('Fire', 'Flamethrower',  { power:  90, energy:  -50 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const pokemon = parsePokemonData(raw).entries[0];
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Flamethrower')?.isRecommended).toBe(true);
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Overheat')?.isRecommended).toBe(false);
+  });
+
+  // — Factor 3: STAB —
+
+  it('Factor 3: STAB move recommended over non-STAB when the 20% bonus overcomes the power gap', () => {
+    // Poison Pokémon: Sludge Bomb (Poison/STAB, 85 pwr, 50 energy) vs Dig (Ground, 100 pwr, 50 energy).
+    // STAB effective power: 85 * 1.2 = 102 ≥ 100 → Sludge Bomb wins.
+    const raw = [{
+      ...makeEntry('Mon', 'Poison'),
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        S: makeMove('Poison', 'Sludge Bomb', { power:  85, energy: -50 }),
+        N: makeMove('Ground', 'Dig',         { power: 100, energy: -50 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const pokemon = parsePokemonData(raw).entries[0];
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Sludge Bomb')?.isRecommended).toBe(true);
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Dig')?.isRecommended).toBe(false);
+  });
+
+  it('Factor 3: non-STAB higher-power move recommended when the power gap exceeds the STAB bonus', () => {
+    // Normal Pokémon: Stomp (Normal/STAB, 60 pwr) vs Fire Blast (Fire, 100 pwr).
+    // STAB effective: 60 * 1.2 = 72 < 100 → Fire Blast wins.
+    const raw = [{
+      ...makeEntry('Mon', 'Normal'),
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        S: makeMove('Normal', 'Stomp',      { power:  60, energy: -50 }),
+        N: makeMove('Fire',   'Fire Blast', { power: 100, energy: -50 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const pokemon = parsePokemonData(raw).entries[0];
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Fire Blast')?.isRecommended).toBe(true);
+    expect(pokemon.chargedMoves.find((m) => m.name === 'Stomp')?.isRecommended).toBe(false);
+  });
+
+  it('Factor 3 does not override Factor 1: fragile Pokémon with high-cost STAB gets lower-cost non-STAB recommended', () => {
+    const dataset = withFragile(makeFragileEntry('Frail3', 'Psychic'), {
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        S: makeMove('Psychic', 'Psybeam',   { power:  80, energy: -100 }), // STAB, high-cost
+        N: makeMove('Normal',  'Body Slam', { power:  60, energy:  -50 }), // non-STAB, low-cost
+      },
+      eliteCinematicMoves: [],
+    });
+    const frail = parsePokemonData(dataset).entries.find((e) => e.name === 'Frail3')!;
+    expect(frail.chargedMoves.find((m) => m.name === 'Body Slam')?.isRecommended).toBe(true);
+    expect(frail.chargedMoves.find((m) => m.name === 'Psybeam')?.isRecommended).toBe(false);
+  });
+
+  // — Determinism —
+
+  it('charged move recommendation is identical across two parse calls from the same dataset', () => {
+    const raw = [{
+      ...makeEntry('Mon', 'Fire', 'Flying'),
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: {
+        A: makeMove('Fire',   'Overheat',    { power: 160, energy: -100 }),
+        B: makeMove('Flying', 'Sky Attack',  { power:  80, energy:  -50 }),
+        C: makeMove('Normal', 'Body Slam',   { power:  60, energy:  -50 }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const rec1 = parsePokemonData(raw).entries[0].chargedMoves.find((m) => m.isRecommended)?.name;
+    const rec2 = parsePokemonData(raw).entries[0].chargedMoves.find((m) => m.isRecommended)?.name;
+    expect(rec1).toBeDefined();
+    expect(rec1).toBe(rec2);
+  });
+
+  // — Internal values do not leak —
+
+  it('_energyCost does not appear on MoveEntry objects', () => {
+    const raw = [{
+      ...makeEntry('Mon', 'Fire'),
+      quickMoves: {}, eliteQuickMoves: [],
+      cinematicMoves: { A: makeMove('Fire', 'Overheat', { power: 160, energy: -100 }) },
+      eliteCinematicMoves: [],
+    }];
+    const move = parsePokemonData(raw).entries[0].chargedMoves[0] as unknown as Record<string, unknown>;
+    expect(move['_energyCost']).toBeUndefined();
+    expect(move['energy']).toBeUndefined();
   });
 });
 

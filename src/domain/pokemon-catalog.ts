@@ -127,13 +127,15 @@ function extractTypeName(typeField: unknown): string | null {
   return typeof english === 'string' && english.length > 0 ? english : null;
 }
 
-// Internal-only; _stat carries energy (quick moves) or power (charged moves) for recommendation
-// and is consumed here — it never reaches MoveEntry or any component.
+// Internal-only; _stat carries energy (quick moves) or power (charged moves) for recommendation,
+// _energyCost carries absolute energy cost for charged moves (0 for quick moves).
+// Both fields are consumed here and never reach MoveEntry or any component.
 interface MoveDraft {
   readonly name: string;
   readonly typeId: string;
   readonly isElite: boolean;
   readonly _stat: number;
+  readonly _energyCost: number;
 }
 
 function extractMovesWithStat(collection: unknown, isElite: boolean, statField: 'energy' | 'power'): MoveDraft[] {
@@ -157,7 +159,12 @@ function extractMovesWithStat(collection: unknown, isElite: boolean, statField: 
       console.warn(`Move "${name}" has no "${statField}" value; defaulting to 0 for recommendation`);
     }
     const _stat = typeof raw === 'number' ? raw : 0;
-    moves.push({ name, typeId, isElite, _stat });
+    // Charged moves carry a negative energy field representing PvE energy cost.
+    const energyRaw = (move as Record<string, unknown>)['energy'];
+    const _energyCost = statField === 'power' && typeof energyRaw === 'number' && energyRaw < 0
+      ? Math.abs(energyRaw)
+      : 0;
+    moves.push({ name, typeId, isElite, _stat, _energyCost });
   }
   return moves;
 }
@@ -169,12 +176,76 @@ function mergeMoveEntries(regular: MoveDraft[], elite: MoveDraft[]): readonly Mo
   return Object.freeze([...seen.values()]);
 }
 
-// Selects the recommended move (highest _stat; alphabetical tiebreaker) and returns frozen MoveEntry[].
+// Selects the recommended quick move (highest energy generation; alphabetical tiebreaker).
 function applyRecommended(drafts: readonly MoveDraft[]): readonly MoveEntry[] {
   if (drafts.length === 0) return Object.freeze([]);
   const best = [...drafts].sort((a, b) =>
     b._stat !== a._stat ? b._stat - a._stat : a.name.localeCompare(b.name, 'en')
   )[0];
+  return Object.freeze(
+    drafts.map((m) =>
+      Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
+    )
+  );
+}
+
+// Fragility threshold: Pokémon whose stamina+defense falls at or below 65% of the dataset mean
+// are treated as low-survivability for charged move recommendation (spec 0015 Factor 1).
+function computeFragileThreshold(allStats: readonly PokemonStats[]): number {
+  if (allStats.length === 0) return 0;
+  const mean = allStats.reduce((sum, s) => sum + s.stamina + s.defense, 0) / allStats.length;
+  return mean * 0.65;
+}
+
+// Selects the recommended charged move using 4-factor PvE viability (spec 0015 §3.2).
+// Factors in priority order:
+//   1. Survivability-adjusted feasibility — high-cost moves suppressed for fragile Pokémon
+//   2. Energy efficiency — ≤50 energy cost clearly beats 100 energy cost
+//   3. STAB — preferred when 20% bonus overcomes the power gap
+//   4. Base power — higher wins among otherwise equal moves
+// Tiebreaker: alphabetical by move name (localeCompare 'en').
+function applyChargedRecommended(
+  drafts: readonly MoveDraft[],
+  pokemonTypeIds: readonly string[],
+  isFragile: boolean,
+): readonly MoveEntry[] {
+  if (drafts.length === 0) return Object.freeze([]);
+
+  const HIGH_COST = 100;
+  const LOW_COST = 50;
+  const hasNonHighCostAlternative = drafts.some((m) => m._energyCost < HIGH_COST);
+
+  const best = [...drafts].sort((a, b) => {
+    // Factor 1: suppress high-cost moves for fragile Pokémon when alternatives exist
+    if (isFragile && hasNonHighCostAlternative) {
+      const aHigh = a._energyCost >= HIGH_COST;
+      const bHigh = b._energyCost >= HIGH_COST;
+      if (aHigh !== bHigh) return aHigh ? 1 : -1;
+    }
+
+    // Factor 2: ≤LOW_COST clearly beats ≥HIGH_COST on energy efficiency
+    const aLow = a._energyCost <= LOW_COST;
+    const bLow = b._energyCost <= LOW_COST;
+    const aHighCost = a._energyCost >= HIGH_COST;
+    const bHighCost = b._energyCost >= HIGH_COST;
+    if (aLow && bHighCost) return -1;
+    if (bLow && aHighCost) return 1;
+
+    // Factor 3: STAB preferred when the 20% bonus overcomes the power gap
+    const aStab = pokemonTypeIds.includes(a.typeId);
+    const bStab = pokemonTypeIds.includes(b.typeId);
+    if (aStab !== bStab) {
+      const [stabMove, nonStabMove] = aStab ? [a, b] : [b, a];
+      if (stabMove._stat * 1.2 >= nonStabMove._stat) return aStab ? -1 : 1;
+    }
+
+    // Factor 4: higher base power
+    if (b._stat !== a._stat) return b._stat - a._stat;
+
+    // Tiebreaker: alphabetical by move name
+    return a.name.localeCompare(b.name, 'en');
+  })[0];
+
   return Object.freeze(
     drafts.map((m) =>
       Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
@@ -189,6 +260,14 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
   if (raw.length === 0) {
     throw new Error('Pokémon data array must not be empty');
   }
+
+  // Pre-pass: collect all valid stats to compute the fragility threshold for charged move recommendation.
+  const allValidStats: PokemonStats[] = [];
+  for (const item of raw as unknown[]) {
+    const stats = extractStats(item);
+    if (stats) allValidStats.push(stats);
+  }
+  const fragileThreshold = computeFragileThreshold(allValidStats);
 
   // Build id → English name map for resolving evolution targets
   const idToName = new Map<string, string>();
@@ -241,10 +320,18 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
       extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
     ));
-    const chargedMoves = applyRecommended(mergeMoveEntries(
-      extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
-      extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
-    ));
+    const pokemonTypeIds = secondaryTypeName
+      ? [primaryTypeName, secondaryTypeName]
+      : [primaryTypeName];
+    const isFragile = (stats.stamina + stats.defense) <= fragileThreshold;
+    const chargedMoves = applyChargedRecommended(
+      mergeMoveEntries(
+        extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
+        extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
+      ),
+      pokemonTypeIds,
+      isFragile,
+    );
 
     entries.push({
       name,
