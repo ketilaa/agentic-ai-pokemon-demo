@@ -393,6 +393,110 @@ describe('parsePokemonData - imageUrl (spec 0009 AC-04 to AC-07)', () => {
   });
 });
 
+// Helper for move type tests
+function makeMove(typeEnglish: string) {
+  return { type: { names: { English: typeEnglish } } };
+}
+
+describe('parsePokemonData - move type extraction (spec 0012)', () => {
+  it('each PokemonEntry exposes quickMoveTypes and chargedMoveTypes as readonly string arrays', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    const { entries } = parsePokemonData(raw);
+    expect(Array.isArray(entries[0].quickMoveTypes)).toBe(true);
+    expect(Array.isArray(entries[0].chargedMoveTypes)).toBe(true);
+  });
+
+  it('quickMoveTypes is empty when quickMoves and eliteQuickMoves are absent', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    expect(parsePokemonData(raw).entries[0].quickMoveTypes).toEqual([]);
+  });
+
+  it('chargedMoveTypes is empty when cinematicMoves and eliteCinematicMoves are absent', () => {
+    const raw = [makeEntry('Bulbasaur', 'Grass', 'Poison')];
+    expect(parsePokemonData(raw).entries[0].chargedMoveTypes).toEqual([]);
+  });
+
+  it('quickMoveTypes is empty when quickMoves is an empty array []', () => {
+    const raw = [{ ...makeEntry('A', 'Fire'), quickMoves: [], eliteQuickMoves: [] }];
+    expect(parsePokemonData(raw).entries[0].quickMoveTypes).toEqual([]);
+  });
+
+  it('chargedMoveTypes is empty when cinematicMoves is an empty array []', () => {
+    const raw = [{ ...makeEntry('A', 'Fire'), cinematicMoves: [], eliteCinematicMoves: [] }];
+    expect(parsePokemonData(raw).entries[0].chargedMoveTypes).toEqual([]);
+  });
+
+  it('extracts types from regular quickMoves object', () => {
+    const raw = [{
+      ...makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      quickMoves: { VINE_WHIP_FAST: makeMove('Grass'), TACKLE_FAST: makeMove('Normal') },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoveTypes } = parsePokemonData(raw).entries[0];
+    expect(quickMoveTypes).toContain('Grass');
+    expect(quickMoveTypes).toContain('Normal');
+    expect(quickMoveTypes).toHaveLength(2);
+  });
+
+  it('extracts types from eliteQuickMoves object and unions with quickMoves', () => {
+    const raw = [{
+      ...makeEntry('Charizard', 'Fire', 'Flying'),
+      quickMoves: { AIR_SLASH_FAST: makeMove('Flying') },
+      eliteQuickMoves: { EMBER_FAST: makeMove('Fire'), WING_ATTACK_FAST: makeMove('Flying') },
+    }];
+    const { quickMoveTypes } = parsePokemonData(raw).entries[0];
+    expect(quickMoveTypes).toContain('Flying');
+    expect(quickMoveTypes).toContain('Fire');
+    expect(quickMoveTypes).toHaveLength(2);
+  });
+
+  it('deduplicates types within quickMoveTypes', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: { M1: makeMove('Fire'), M2: makeMove('Fire'), M3: makeMove('Normal') },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoveTypes } = parsePokemonData(raw).entries[0];
+    expect(quickMoveTypes.filter((t) => t === 'Fire')).toHaveLength(1);
+    expect(quickMoveTypes).toHaveLength(2);
+  });
+
+  it('extracts types from cinematicMoves for chargedMoveTypes', () => {
+    const raw = [{
+      ...makeEntry('Bulbasaur', 'Grass', 'Poison'),
+      quickMoves: [],
+      eliteQuickMoves: [],
+      cinematicMoves: { POWER_WHIP: makeMove('Grass'), SLUDGE_BOMB: makeMove('Poison') },
+      eliteCinematicMoves: [],
+    }];
+    const { chargedMoveTypes } = parsePokemonData(raw).entries[0];
+    expect(chargedMoveTypes).toContain('Grass');
+    expect(chargedMoveTypes).toContain('Poison');
+    expect(chargedMoveTypes).toHaveLength(2);
+  });
+
+  it('unions cinematicMoves and eliteCinematicMoves for chargedMoveTypes', () => {
+    const raw = [{
+      ...makeEntry('Venusaur', 'Grass', 'Poison'),
+      quickMoves: [],
+      eliteQuickMoves: [],
+      cinematicMoves: { FRENZY_PLANT: makeMove('Grass') },
+      eliteCinematicMoves: { PETAL_BLIZZARD: makeMove('Grass'), SLUDGE_BOMB: makeMove('Poison') },
+    }];
+    const { chargedMoveTypes } = parsePokemonData(raw).entries[0];
+    expect(chargedMoveTypes).toContain('Grass');
+    expect(chargedMoveTypes).toContain('Poison');
+    expect(chargedMoveTypes.filter((t) => t === 'Grass')).toHaveLength(1);
+    expect(chargedMoveTypes).toHaveLength(2);
+  });
+
+  it('move types are immutable', () => {
+    const raw = [{ ...makeEntry('A', 'Fire'), quickMoves: { M: makeMove('Fire') }, eliteQuickMoves: [] }];
+    const { entries } = parsePokemonData(raw);
+    expect(() => { (entries[0].quickMoveTypes as string[]).push('Hack'); }).toThrow();
+  });
+});
+
 describe('parsePokemonData - count and errors', () => {
   it('returns the count of entries in the array', () => {
     const raw = [{ id: 'BULBASAUR' }, { id: 'IVYSAUR' }, { id: 'VENUSAUR' }];

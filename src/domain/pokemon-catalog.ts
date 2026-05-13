@@ -17,6 +17,8 @@ export interface PokemonEntry {
   readonly evolvesFrom: string | null;
   readonly evolvesTo: readonly string[];
   readonly imageUrl: string | null;
+  readonly quickMoveTypes: readonly string[];
+  readonly chargedMoveTypes: readonly string[];
 }
 
 export interface StatMaxima {
@@ -118,6 +120,24 @@ function extractTypeName(typeField: unknown): string | null {
   return typeof english === 'string' && english.length > 0 ? english : null;
 }
 
+function extractMoveTypesFromCollection(collection: unknown): string[] {
+  if (typeof collection !== 'object' || collection === null || Array.isArray(collection)) {
+    return [];
+  }
+  const types: string[] = [];
+  for (const move of Object.values(collection as Record<string, unknown>)) {
+    const typeName = extractTypeName((move as Record<string, unknown>).type);
+    if (typeName) types.push(typeName);
+  }
+  return types;
+}
+
+function uniqueTypes(...lists: string[][]): readonly string[] {
+  const seen = new Set<string>();
+  for (const list of lists) for (const t of list) seen.add(t);
+  return Object.freeze([...seen]);
+}
+
 export function parsePokemonData(raw: unknown): PokemonCatalog {
   if (!Array.isArray(raw)) {
     throw new Error('Pokémon data must be a JSON array');
@@ -172,6 +192,16 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
         .filter((n): n is string => n !== undefined)
     );
 
+    const rawItem = item as Record<string, unknown>;
+    const quickMoveTypes = uniqueTypes(
+      extractMoveTypesFromCollection(rawItem.quickMoves),
+      extractMoveTypesFromCollection(rawItem.eliteQuickMoves),
+    );
+    const chargedMoveTypes = uniqueTypes(
+      extractMoveTypesFromCollection(rawItem.cinematicMoves),
+      extractMoveTypesFromCollection(rawItem.eliteCinematicMoves),
+    );
+
     entries.push({
       name,
       primaryType: toType(primaryTypeName),
@@ -180,6 +210,8 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       evolvesFrom,
       evolvesTo,
       imageUrl: extractImageUrl(item),
+      quickMoveTypes,
+      chargedMoveTypes,
     });
   }
 
