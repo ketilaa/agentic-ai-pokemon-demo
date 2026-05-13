@@ -4,6 +4,7 @@ import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
 import type { PokemonStats, PokemonType, StatMaxima } from '@/domain/pokemon-catalog';
+import { TYPE_COLORS } from '@/domain/pokemon-catalog';
 
 interface Props {
   name: string;
@@ -14,6 +15,8 @@ interface Props {
   evolvesFrom: string | null;
   evolvesTo: readonly string[];
   imageUrl?: string | null;
+  quickMoveTypes?: readonly string[];
+  chargedMoveTypes?: readonly string[];
   onSelect: (name: string) => void;
 }
 
@@ -59,7 +62,74 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
   );
 }
 
-export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, onSelect }: Props) {
+function MoveTypeCoverage({
+  quickMoveTypes,
+  chargedMoveTypes,
+}: {
+  quickMoveTypes: readonly string[];
+  chargedMoveTypes: readonly string[];
+}) {
+  if (quickMoveTypes.length === 0 && chargedMoveTypes.length === 0) return null;
+
+  return (
+    <Box data-testid="move-type-section" sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      {quickMoveTypes.length > 0 && (
+        <Box data-testid="quick-move-type-group" sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+          {quickMoveTypes.map((typeId) => {
+            const color = TYPE_COLORS[typeId] ?? '#888888';
+            return (
+              <Box
+                key={typeId}
+                component="span"
+                data-testid="move-type-swatch"
+                data-type-id={typeId}
+                data-type-color={color}
+                sx={{
+                  display: 'inline-block',
+                  width: 10,
+                  height: 10,
+                  borderRadius: '50%',
+                  bgcolor: color,
+                  opacity: 0.8,
+                  flexShrink: 0,
+                  pointerEvents: 'none',
+                }}
+              />
+            );
+          })}
+        </Box>
+      )}
+      {chargedMoveTypes.length > 0 && (
+        <Box data-testid="charged-move-type-group" sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+          {chargedMoveTypes.map((typeId) => {
+            const color = TYPE_COLORS[typeId] ?? '#888888';
+            return (
+              <Box
+                key={typeId}
+                component="span"
+                data-testid="move-type-swatch"
+                data-type-id={typeId}
+                data-type-color={color}
+                sx={{
+                  display: 'inline-block',
+                  width: 14,
+                  height: 14,
+                  borderRadius: '2px',
+                  bgcolor: color,
+                  opacity: 0.8,
+                  flexShrink: 0,
+                  pointerEvents: 'none',
+                }}
+              />
+            );
+          })}
+        </Box>
+      )}
+    </Box>
+  );
+}
+
+export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, quickMoveTypes = [], chargedMoveTypes = [], onSelect }: Props) {
   return (
     <Card
       data-testid="pokemon-card"
@@ -124,6 +194,7 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       </Box>
       <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
+        <MoveTypeCoverage quickMoveTypes={quickMoveTypes} chargedMoveTypes={chargedMoveTypes} />
         {(evolvesFrom !== null || evolvesTo.length > 0) && (
           <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>
             {evolvesFrom !== null && (
