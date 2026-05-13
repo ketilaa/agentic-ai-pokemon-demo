@@ -78,9 +78,9 @@ describe('PokemonExplorer', () => {
     const input = screen.getByTestId('mock-search');
     fireEvent.change(input, { target: { value: 'Bulbasaur' } });
     fireEvent.change(input, { target: { value: 'Ivysaur' } });
-    const title = screen.getByTestId('card-title-section');
-    expect(within(title).getByText('Ivysaur')).toBeInTheDocument();
-    expect(within(title).queryByText('Bulbasaur')).not.toBeInTheDocument();
+    const header = screen.getByTestId('card-header');
+    expect(within(header).getByText('Ivysaur')).toBeInTheDocument();
+    expect(within(header).queryByText('Bulbasaur')).not.toBeInTheDocument();
   });
 
   it('AC-11: card is hidden when the selection is cleared', () => {
@@ -133,7 +133,7 @@ describe('PokemonExplorer', () => {
     mockGet.mockReturnValue('Bulbasaur');
     render(<PokemonExplorer entries={ENTRIES} statMaxima={MAXIMA} />);
     expect(screen.getByTestId('pokemon-card')).toBeInTheDocument();
-    expect(within(screen.getByTestId('card-title-section')).getByText('Bulbasaur')).toBeInTheDocument();
+    expect(within(screen.getByTestId('card-header')).getByText('Bulbasaur')).toBeInTheDocument();
   });
 
   it('AC-16: loading with an invalid ?pokemon= param shows no card and cleans the URL', () => {
