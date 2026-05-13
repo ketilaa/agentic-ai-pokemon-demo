@@ -1,6 +1,6 @@
 # Spec 0012 – Pokémon Card Move Type Coverage
 
-**Status:** Draft  
+**Status:** Complete  
 **Iteration:** 12  
 **Author:** Architect agent  
 **Date:** 2026-05-13
