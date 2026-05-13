@@ -138,7 +138,10 @@ function extractMovesFromCollection(collection: unknown, isElite: boolean): Move
       console.warn('Move object has no English name; omitting from move list');
       continue;
     }
-    if (!typeId) continue;
+    if (!typeId) {
+      console.warn(`Move "${name}" has no resolvable type; omitting from move list`);
+      continue;
+    }
     moves.push({ name, typeId, isElite });
   }
   return moves;

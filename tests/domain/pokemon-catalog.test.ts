@@ -526,6 +526,20 @@ describe('parsePokemonData - move extraction (spec 0013)', () => {
     expect(quickMoves[0].name).toBe('Ember');
   });
 
+  it('omits move with no resolvable type and does not throw', () => {
+    const raw = [{
+      ...makeEntry('A', 'Fire'),
+      quickMoves: {
+        NO_TYPE: { names: { English: 'Mystery Move' } },
+        EMBER_FAST: makeMove('Fire', 'Ember'),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves).toHaveLength(1);
+    expect(quickMoves[0].name).toBe('Ember');
+  });
+
   it('quickMoves array is immutable', () => {
     const raw = [{
       ...makeEntry('A', 'Fire'),
