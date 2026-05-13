@@ -15,7 +15,7 @@ Surface the types of moves a Pokémon can have — separately for quick moves an
 
 ## 2. Context / Background
 
-Iterations 1–11 have built a card that communicates a Pokémon's identity (name, type, image) and base capability (ATK, DEF, STA stat profile, evolution chain). The card's content zone — below the stat bars — currently carries no information.
+Iterations 1–11 have built a card that communicates a Pokémon's identity (name, type, image) and base capability (ATK, DEF, STA stat profile, evolution chain). The area of the content zone below the stat bars currently carries no capability information beyond the evolution chain navigation present for mid-stage Pokémon.
 
 The build-time dataset already contains full move data for each Pokémon, including the type of every quick move and every charged move. This information is present at build time and requires no new data sources or runtime requests.
 
@@ -33,15 +33,15 @@ The card structure from Iteration 10–11 divides the card into a typed header (
 
 - The move pool for each Pokémon is derived exclusively from the existing build-time dataset.
 - The dataset contains four move collections per Pokémon: regular quick moves, elite quick moves, regular charged moves, and elite charged moves.
-- All four collections contribute to the possible move pool: a move type is included if any move in either regular or elite moves carries that type.
+- The quick move type group is derived from the union of regular quick moves and elite quick moves. The charged move type group is derived from the union of regular charged moves and elite charged moves. A type is included in a group if any move in that group's corresponding collections carries that type.
 - Move types are the sole information extracted from the dataset for this feature. Move names, power values, energy values, duration, and combat statistics must not be read or surfaced.
 
 ### 3.2 Quick move type group
 
 - The card displays the unique set of types present among all quick moves (regular and elite) available to the Pokémon.
 - Each type in the set appears exactly once, regardless of how many quick moves carry that type.
-- The order of types within the group is not significant and need not be stable across renders.
-- This group is identified as a distinct, labelled zone within the card for test purposes; no visible label is required.
+- The order of types within the group is not significant.
+- This group carries `data-testid="quick-move-type-group"` for test purposes; no visible label is required.
 - When the Pokémon has no quick moves in any collection, the quick move type group is absent from the card.
 
 ### 3.3 Charged move type group
@@ -49,13 +49,13 @@ The card structure from Iteration 10–11 divides the card into a typed header (
 - The card displays the unique set of types present among all charged moves (regular and elite) available to the Pokémon.
 - Each type in the set appears exactly once.
 - The order of types within the group is not significant.
-- This group is identified as a distinct, labelled zone within the card for test purposes; no visible label is required.
+- This group carries `data-testid="charged-move-type-group"` for test purposes; no visible label is required.
 - When the Pokémon has no charged moves in any collection, the charged move type group is absent from the card.
 
 ### 3.4 Visual communication
 
 - Each move type is represented by a single color swatch derived from the `TYPE_COLORS` registry established in Iteration 4.
-- No type name, abbreviation, or textual label appears on or adjacent to any type swatch.
+- No type name, abbreviation, or textual label appears on any type swatch.
 - No move name, number, or other move attribute is displayed.
 - The two groups (quick and charged) must be visually distinguishable from each other — a player scanning the card must be able to tell which color swatches belong to quick moves and which belong to charged moves.
 - The visual distinction between groups must not rely on text labels for the group names. It may use position, spacing, a structural separator, or a non-textual visual cue.
@@ -74,8 +74,8 @@ All structural and behavioral properties from prior iterations remain unchanged:
 
 - Card structure: `card-header`, `card-content-section`, `evolution-section`, stat bars (Iterations 5–11)
 - Header type identity: `data-header-tint-color`, `data-header-tint-opacity` in range (0.15, 0.5) (Iteration 10)
-- Card container tint retirement: `data-tint-opacity={0}` (Iteration 10)
-- Content neutrality: `data-content-tint-opacity={0}` (Iteration 10)
+- Card container tint retirement: `data-tint-opacity` set to `0` (Iteration 10)
+- Content neutrality: `data-content-tint-opacity` set to `0` (Iteration 10)
 - Primary type border and secondary type accent (Iteration 8)
 - Image in card header, no-crop constraint (Iteration 11)
 - Responsive maximum card width (Iteration 11)
@@ -127,6 +127,7 @@ All structural and behavioral properties from prior iterations remain unchanged:
 | AC-01 | The card contains a move type section identified by `data-testid="move-type-section"` inside `card-content-section`. | Render any Pokémon with at least one move; confirm an element with testid `move-type-section` is present and is a descendant of `card-content-section`. |
 | AC-02 | The move type section is not present inside `card-header`. | Render any Pokémon; confirm no element with testid `move-type-section` is a descendant of `card-header`. |
 | AC-03 | The move type section appears after the stat bars in document order. | Render any Pokémon; confirm `move-type-section` follows `stat-bar-sta` in DOM order within `card-content-section`. |
+| AC-03b | When a Pokémon has no quick moves and no charged moves, `move-type-section` is absent from the card. | Render a Pokémon whose quick move pool and charged move pool are both empty; confirm no element with testid `move-type-section` is present anywhere on the card. |
 
 ### Quick move type group
 
@@ -159,7 +160,7 @@ All structural and behavioral properties from prior iterations remain unchanged:
 | # | Criterion | How to verify |
 |---|-----------|---------------|
 | AC-15 | No type name or label appears inside `move-type-section`. | Render several Pokémon; confirm no text content representing a type name (e.g. "Fire", "Water", "Grass") appears inside `move-type-section`. |
-| AC-16 | No move name, damage value, or energy value appears inside `move-type-section`. | Inspect the DOM inside `move-type-section`; confirm no text node or element contains move name strings or numeric move statistics. |
+| AC-16 | No numeric move statistic (damage value, energy value) appears inside `move-type-section`. | Inspect all text nodes inside `move-type-section`; confirm none contain numeric content that corresponds to a move statistic. Move name prohibition is covered by AC-15. |
 
 ### Visual separation of groups (Manual QA)
 
@@ -196,6 +197,8 @@ All structural and behavioral properties from prior iterations remain unchanged:
 - **Pokémon with no moves.** At least one Pokémon in the dataset has an empty quick move pool and at least one has an empty charged move pool. When a pool is empty, the corresponding group must be absent, not rendered as an empty container. The implementation must guard against rendering empty or zero-swatch groups.
 
 - **Content neutrality.** The type colors introduced for move swatches must not bleed into or alter the background of `card-content-section`. The content region's `data-content-tint-opacity` must remain `0`. The swatches are foreground elements within a neutral background; they must not introduce a type-derived color into the region itself.
+
+- **TYPE_COLORS registry completeness.** The spec requires that every swatch color originates from the `TYPE_COLORS` registry. If any type that appears in the move dataset is absent from the registry, swatch rendering for that type will fail or produce no valid color. The implementation must verify that the registry contains an entry for every type identifier that can appear in the four move collections. Any gap must be resolved by extending the registry — not by hardcoding a fallback color — before this feature ships.
 
 ---
 
