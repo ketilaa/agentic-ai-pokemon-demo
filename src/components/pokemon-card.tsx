@@ -3,7 +3,7 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
-import type { PokemonStats, PokemonType, StatMaxima } from '@/domain/pokemon-catalog';
+import type { MoveEntry, PokemonStats, PokemonType, StatMaxima } from '@/domain/pokemon-catalog';
 import { TYPE_COLORS } from '@/domain/pokemon-catalog';
 
 interface Props {
@@ -15,8 +15,8 @@ interface Props {
   evolvesFrom: string | null;
   evolvesTo: readonly string[];
   imageUrl?: string | null;
-  quickMoveTypes?: readonly string[];
-  chargedMoveTypes?: readonly string[];
+  quickMoves?: readonly MoveEntry[];
+  chargedMoves?: readonly MoveEntry[];
   onSelect: (name: string) => void;
 }
 
@@ -62,74 +62,86 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
   );
 }
 
-function MoveTypeCoverage({
-  quickMoveTypes,
-  chargedMoveTypes,
+function MoveGroup({
+  moves,
+  groupTestId,
+  labelTestId,
+  label,
 }: {
-  quickMoveTypes: readonly string[];
-  chargedMoveTypes: readonly string[];
+  moves: readonly MoveEntry[];
+  groupTestId: string;
+  labelTestId: string;
+  label: string;
 }) {
-  if (quickMoveTypes.length === 0 && chargedMoveTypes.length === 0) return null;
-
+  if (moves.length === 0) return null;
   return (
-    <Box data-testid="move-type-section" sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {quickMoveTypes.length > 0 && (
-        <Box data-testid="quick-move-type-group" sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-          {quickMoveTypes.map((typeId) => {
-            const color = TYPE_COLORS[typeId] ?? '#888888';
-            return (
-              <Box
-                key={typeId}
-                component="span"
-                data-testid="move-type-swatch"
-                data-type-id={typeId}
-                data-type-color={color}
-                sx={{
-                  display: 'inline-block',
-                  width: 10,
-                  height: 10,
-                  borderRadius: '50%',
-                  bgcolor: color,
-                  opacity: 0.8,
-                  flexShrink: 0,
-                  pointerEvents: 'none',
-                }}
-              />
-            );
-          })}
-        </Box>
-      )}
-      {chargedMoveTypes.length > 0 && (
-        <Box data-testid="charged-move-type-group" sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-          {chargedMoveTypes.map((typeId) => {
-            const color = TYPE_COLORS[typeId] ?? '#888888';
-            return (
-              <Box
-                key={typeId}
-                component="span"
-                data-testid="move-type-swatch"
-                data-type-id={typeId}
-                data-type-color={color}
-                sx={{
-                  display: 'inline-block',
-                  width: 14,
-                  height: 14,
-                  borderRadius: '2px',
-                  bgcolor: color,
-                  opacity: 0.8,
-                  flexShrink: 0,
-                  pointerEvents: 'none',
-                }}
-              />
-            );
-          })}
-        </Box>
-      )}
+    <>
+      <Typography
+        data-testid={labelTestId}
+        variant="caption"
+        sx={{ color: 'text.secondary', lineHeight: 1, fontSize: '0.6rem' }}
+      >
+        {label}
+      </Typography>
+      <Box data-testid={groupTestId} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+        {moves.map((move) => {
+          const color = TYPE_COLORS[move.typeId] ?? '#888888';
+          return (
+            <Box
+              key={move.name}
+              component="span"
+              data-testid="move-item"
+              data-move-name={move.name}
+              data-move-type={move.typeId}
+              data-is-elite={String(move.isElite)}
+              sx={{
+                display: 'inline-block',
+                px: 0.75,
+                py: 0.25,
+                borderRadius: 1,
+                bgcolor: alpha(color, 0.15),
+                fontSize: '0.7rem',
+                fontStyle: move.isElite ? 'italic' : 'normal',
+                pointerEvents: 'none',
+                userSelect: 'none',
+              }}
+            >
+              {move.name}
+            </Box>
+          );
+        })}
+      </Box>
+    </>
+  );
+}
+
+function MoveSection({
+  quickMoves,
+  chargedMoves,
+}: {
+  quickMoves: readonly MoveEntry[];
+  chargedMoves: readonly MoveEntry[];
+}) {
+  if (quickMoves.length === 0 && chargedMoves.length === 0) return null;
+  return (
+    <Box data-testid="move-section" sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      <MoveGroup
+        moves={quickMoves}
+        groupTestId="quick-moves-group"
+        labelTestId="quick-moves-label"
+        label="Quick moves"
+      />
+      <MoveGroup
+        moves={chargedMoves}
+        groupTestId="charged-moves-group"
+        labelTestId="charged-moves-label"
+        label="Charged moves"
+      />
     </Box>
   );
 }
 
-export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, quickMoveTypes = [], chargedMoveTypes = [], onSelect }: Props) {
+export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, quickMoves = [], chargedMoves = [], onSelect }: Props) {
   return (
     <Card
       data-testid="pokemon-card"
@@ -194,7 +206,7 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       </Box>
       <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
-        <MoveTypeCoverage quickMoveTypes={quickMoveTypes} chargedMoveTypes={chargedMoveTypes} />
+        <MoveSection quickMoves={quickMoves} chargedMoves={chargedMoves} />
         {(evolvesFrom !== null || evolvesTo.length > 0) && (
           <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>
             {evolvesFrom !== null && (
