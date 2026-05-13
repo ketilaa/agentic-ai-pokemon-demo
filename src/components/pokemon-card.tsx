@@ -18,6 +18,7 @@ interface Props {
 }
 
 const HEADER_TINT_OPACITY = 0.3;
+const MAX_CARD_WIDTH = 480;
 
 function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatMaxima }) {
   const bars = [
@@ -68,9 +69,13 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       data-border-secondary-sides={secondaryType ? '1' : '0'}
       data-tint-color={primaryType.color}
       data-tint-opacity={0}
+      data-max-width={MAX_CARD_WIDTH}
       sx={{
         overflow: 'hidden',
         position: 'relative',
+        width: '100%',
+        maxWidth: MAX_CARD_WIDTH,
+        mx: 'auto',
         border: `3px solid ${primaryType.color}`,
         ...(secondaryType && {
           '&::before': {
@@ -86,29 +91,36 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
         }),
       }}
     >
-      {imageUrl && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', pt: 1.5 }}>
-          {/* eslint-disable-next-line @next/next/no-img-element */}
+      <Box
+        data-testid="card-header"
+        data-header-tint-color={primaryType.color}
+        data-header-tint-opacity={HEADER_TINT_OPACITY}
+        sx={{
+          px: 2,
+          py: 1.5,
+          bgcolor: alpha(primaryType.color, HEADER_TINT_OPACITY),
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 1,
+        }}
+      >
+        <Typography variant="h6" data-name-color-source="theme" sx={{ color: 'text.primary' }}>
+          {name}
+        </Typography>
+        {imageUrl && (
+          // eslint-disable-next-line @next/next/no-img-element
           <img
             src={imageUrl}
             alt=""
             aria-hidden="true"
             data-testid="pokemon-image"
-            width={80}
-            height={80}
-            style={{ display: 'block', width: 80, height: 80, objectFit: 'contain', pointerEvents: 'none' }}
+            data-image-crop="none"
+            width={64}
+            height={64}
+            style={{ display: 'block', width: 64, height: 64, objectFit: 'contain', pointerEvents: 'none', flexShrink: 0 }}
           />
-        </Box>
-      )}
-      <Box
-        data-testid="card-header"
-        data-header-tint-color={primaryType.color}
-        data-header-tint-opacity={HEADER_TINT_OPACITY}
-        sx={{ px: 2, py: 1.5, bgcolor: alpha(primaryType.color, HEADER_TINT_OPACITY) }}
-      >
-        <Typography variant="h6" data-name-color-source="theme" sx={{ color: 'text.primary' }}>
-          {name}
-        </Typography>
+        )}
       </Box>
       <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
