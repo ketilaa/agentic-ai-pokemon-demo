@@ -14,8 +14,11 @@ import type { PokemonStats, PokemonType, StatMaxima } from '../../src/domain/pok
 // spec 0008 manual QA only: AC-10 (centralized theme — verified via constants matching TYPE_COLORS),
 //   AC-12 (375 px viewport), AC-14 (visual cohesion), AC-17 (next build), AC-18 (network)
 // spec 0009: AC-08, AC-09, AC-11, AC-12
-// spec 0010 automated: AC-01–AC-06, AC-11–AC-14, AC-15, AC-16, AC-19, AC-20
+// spec 0010 automated: AC-01–AC-06, AC-11–AC-14, AC-15, AC-16, AC-20
+// spec 0010 AC-19: inverted by spec 0011 — see spec 0011 AC-01 below
 // spec 0010 manual QA only: AC-17 (name legibility for dark types), AC-18 (stat bar visual contrast)
+// spec 0011 automated: AC-01, AC-02, AC-03, AC-05, AC-11 (image check), AC-12
+// spec 0011 manual QA only: AC-09, AC-10 (visual legibility), AC-13 (375px viewport), AC-14 (desktop max width)
 
 // Color constants must match TYPE_COLORS in pokemon-catalog.ts (AC-10 proxy)
 const FIRE: PokemonType = { name: 'Fire', color: '#E62829' };
@@ -409,15 +412,67 @@ describe('PokemonCard – typed visual identity (spec 0010)', () => {
     expect(screen.queryByTestId(/type-badge|type-chip|type-swatch|type-dot/)).not.toBeInTheDocument();
   });
 
-  it('AC-19: image element is present but not nested inside card-header', () => {
+  it('AC-19 (superseded by spec 0011 AC-01): image is now inside card-header — see spec 0011 tests', () => {
     render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
     expect(screen.getByTestId('pokemon-image')).toBeInTheDocument();
-    expect(within(screen.getByTestId('card-header')).queryByTestId('pokemon-image')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('card-header')).getByTestId('pokemon-image')).toBeInTheDocument();
   });
 
   it('AC-20: no image element is rendered when imageUrl is null', () => {
     render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={null} onSelect={jest.fn()} />);
     expect(screen.queryByTestId('pokemon-image')).not.toBeInTheDocument();
+  });
+});
+
+describe('PokemonCard – header image and responsive width (spec 0011)', () => {
+  const IMAGE_URL = 'https://raw.githubusercontent.com/pokemon-go-api/assets/main/Pokemon/pm1.icon.png';
+
+  it('AC-01: when imageUrl is non-null, pokemon-image is a descendant of card-header', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    expect(within(screen.getByTestId('card-header')).getByTestId('pokemon-image')).toBeInTheDocument();
+  });
+
+  it('AC-02: when imageUrl is non-null, no image element is inside card-content-section', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    expect(within(screen.getByTestId('card-content-section')).queryByRole('img')).not.toBeInTheDocument();
+  });
+
+  it('AC-03: no image element is a sibling preceding card-header', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    const header = screen.getByTestId('card-header');
+    const card = screen.getByTestId('pokemon-card');
+    const childrenBeforeHeader = Array.from(card.children).slice(0, Array.from(card.children).indexOf(header));
+    const imgBeforeHeader = childrenBeforeHeader.some((el) => el.tagName === 'IMG' || el.querySelector('img'));
+    expect(imgBeforeHeader).toBe(false);
+  });
+
+  it('AC-04: when imageUrl is null, no image element is rendered anywhere on the card', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={null} onSelect={jest.fn()} />);
+    expect(screen.queryByTestId('pokemon-image')).not.toBeInTheDocument();
+    expect(screen.getByTestId('card-header').querySelector('img')).toBeNull();
+  });
+
+  it('AC-05: image carries aria-hidden="true" and data-image-crop="none"', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    const img = screen.getByTestId('pokemon-image');
+    expect(img).toHaveAttribute('aria-hidden', 'true');
+    expect(img).toHaveAttribute('data-image-crop', 'none');
+  });
+
+  it('AC-11: content section carries no image element when imageUrl is non-null', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} imageUrl={IMAGE_URL} onSelect={jest.fn()} />);
+    const content = screen.getByTestId('card-content-section');
+    expect(content.querySelector('img')).toBeNull();
+    const opacity = parseFloat(content.getAttribute('data-content-tint-opacity') ?? '1');
+    expect(opacity).toBe(0);
+  });
+
+  it('AC-12: card container carries data-max-width with a finite positive integer value', () => {
+    render(<PokemonCard name="Bulbasaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA} evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />);
+    const card = screen.getByTestId('pokemon-card');
+    const maxWidth = parseInt(card.getAttribute('data-max-width') ?? '0');
+    expect(maxWidth).toBeGreaterThan(0);
+    expect(Number.isFinite(maxWidth)).toBe(true);
   });
 });
 
