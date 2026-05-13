@@ -32,7 +32,7 @@ The card structure from Iteration 10–11 divides the card into a typed header (
 ### 3.1 Move type data sourcing
 
 - The move pool for each Pokémon is derived exclusively from the existing build-time dataset.
-- The dataset contains four move collections per Pokémon: regular quick moves, elite quick moves, regular charged moves, and elite charged moves.
+- The dataset contains four move collections per Pokémon: regular quick moves, elite quick moves, regular charged moves, and elite charged moves. In the dataset, charged moves are stored in fields named `cinematicMoves` (regular) and `eliteCinematicMoves` (elite).
 - The quick move type group is derived from the union of regular quick moves and elite quick moves. The charged move type group is derived from the union of regular charged moves and elite charged moves. A type is included in a group if any move in that group's corresponding collections carries that type.
 - Move types are the sole information extracted from the dataset for this feature. Move names, power values, energy values, duration, and combat statistics must not be read or surfaced.
 
@@ -55,6 +55,7 @@ The card structure from Iteration 10–11 divides the card into a typed header (
 ### 3.4 Visual communication
 
 - Each move type is represented by a single color swatch derived from the `TYPE_COLORS` registry established in Iteration 4.
+- Each type swatch carries `data-testid="move-type-swatch"`, `data-type-id` set to the type identifier as it appears in the dataset, and `data-type-color` set to the corresponding color value from `TYPE_COLORS`.
 - No type name, abbreviation, or textual label appears on any type swatch.
 - No move name, number, or other move attribute is displayed.
 - The two groups (quick and charged) must be visually distinguishable from each other — a player scanning the card must be able to tell which color swatches belong to quick moves and which belong to charged moves.
