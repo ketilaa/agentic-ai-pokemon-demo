@@ -40,6 +40,7 @@ No new data sources, runtime requests, or interaction are introduced. The applic
 - For each move identifier, the displayed name and the associated type are resolved from the build-time dataset. No name or type value may be hardcoded outside the dataset or the `TYPE_COLORS` registry.
 - A move that appears in both the regular and elite collection for the same category is treated as a single move item and is shown with the elite distinction applied.
 - The fields `eliteQuickMoves` and `eliteCinematicMoves` may be either an object (keyed by move identifier) or an empty array in the dataset. An empty array contributes no moves; a non-empty object contributes its keys as move identifiers.
+- If a move identifier cannot be resolved to a human-readable name from the dataset, the move is omitted from the displayed list. The omission must be surfaced as a build-time warning (e.g. a `console.warn` or equivalent during data ingestion) so that gaps in name resolution are visible and correctable without a silent data loss.
 
 ### 3.2 Quick moves group
 
@@ -82,6 +83,7 @@ No new data sources, runtime requests, or interaction are introduced. The applic
 - The quick moves group is preceded by a small textual label reading exactly **"Quick moves"**.
 - The charged moves group is preceded by a small textual label reading exactly **"Charged moves"**.
 - Labels carry `data-testid="quick-moves-label"` and `data-testid="charged-moves-label"` respectively.
+- A label is present if and only if its corresponding group is present. When a group is absent, its label is also absent from the DOM.
 - Labels serve as orientation aids only. They must be visually subordinate to the move names — smaller in apparent visual weight and less prominent in the layout hierarchy.
 - Labels must not be the focal element of the section.
 
@@ -153,8 +155,8 @@ All structural and behavioral properties from prior iterations remain unchanged:
 |---|-----------|---------------|
 | AC-01 | The card contains a move section identified by `data-testid="move-section"` inside `card-content-section`. | Render any Pokémon with at least one move; confirm an element with testid `move-section` is present and is a descendant of `card-content-section`. |
 | AC-02 | The move section is not present inside `card-header`. | Render any Pokémon; confirm no element with testid `move-section` is a descendant of `card-header`. |
-| AC-03 | The move section appears after the stat bars in document order. | Render any Pokémon; confirm `move-section` follows `stat-bar-sta` in DOM order within `card-content-section`. |
-| AC-04 | When a Pokémon has no quick moves and no charged moves, `move-section` is absent from the card. | Render a Pokémon whose quick move pool and charged move pool are both empty; confirm no element with testid `move-section` is present on the card. |
+| AC-03 | The move section appears after the stat bars in document order. | Render any Pokémon; confirm `move-section` follows `stat-bar-sta` in DOM order within `card-content-section`. (This anchor is stable as long as §3.8 preserved behaviors hold; if stat bar testids change in a future iteration, this criterion must be updated.) |
+| AC-04 | When a Pokémon has no quick moves and no charged moves, `move-section` is absent from the card. | Render a Pokémon whose quick move pool and charged move pool are both empty; confirm no element with testid `move-section` is present on the card. If no such Pokémon exists in the live dataset, a test fixture with empty move collections must be used. |
 | AC-05 | No element with `data-testid="move-type-section"` is present on the card (Iteration 12 element retired). | Render any Pokémon; confirm no element with testid `move-type-section` is present in the DOM. |
 
 ### Quick moves group
@@ -182,7 +184,7 @@ All structural and behavioral properties from prior iterations remain unchanged:
 | # | Criterion | How to verify |
 |---|-----------|---------------|
 | AC-16 | Each `move-item` carries `data-move-type` equal to the type identifier from the dataset for that move. | Render a Pokémon with known move types; confirm each `move-item`'s `data-move-type` matches the expected type identifier. |
-| AC-17 | No two move items that differ in type carry the same `data-move-type` value. (Type identifiers are not invented or aliased.) | Verify that `data-move-type` values map 1:1 to entries in the `TYPE_COLORS` registry. |
+| AC-17 | Every `data-move-type` value present on any `move-item` is a key in the `TYPE_COLORS` registry. No invented or aliased type identifier may appear. | Collect all `data-move-type` values across all rendered `move-item` elements; confirm each value is a key in the `TYPE_COLORS` registry. |
 
 ### Elite move distinction
 
@@ -246,6 +248,8 @@ All structural and behavioral properties from prior iterations remain unchanged:
 - **Move appearing in both regular and elite collections.** If a move identifier appears in both `quickMoves` and `eliteQuickMoves`, it must be rendered as a single item with `data-is-elite="true"`. The implementation must deduplicate correctly and not produce two items for the same move.
 
 - **`TYPE_COLORS` registry completeness.** The spec requires that every move type color originates from the `TYPE_COLORS` registry. If any type identifier from the move dataset is absent from the registry, the color signal for that type will fail. The developer must verify registry completeness against all type identifiers that can appear in move data before shipping.
+
+- **Domain model extension required.** The current `PokemonEntry` interface carries only `quickMoveTypes` and `chargedMoveTypes` — lists of type identifier strings with no move names. Implementing this spec requires extending `PokemonEntry` (or introducing a dedicated `MoveEntry` type carrying name, type identifier, and elite status) and updating `parsePokemonData` accordingly. This is the most significant structural change in this iteration. The developer must extend the domain model and ensure all existing consumers of `quickMoveTypes` and `chargedMoveTypes` remain compatible or are updated before building the card component.
 
 ---
 
