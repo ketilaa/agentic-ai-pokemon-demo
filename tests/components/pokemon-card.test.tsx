@@ -4,7 +4,7 @@
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { PokemonCard } from '../../src/components/pokemon-card';
-import type { PokemonStats, PokemonType, StatMaxima } from '../../src/domain/pokemon-catalog';
+import type { MoveEntry, PokemonStats, PokemonType, StatMaxima } from '../../src/domain/pokemon-catalog';
 import { TYPE_COLORS } from '../../src/domain/pokemon-catalog';
 
 // spec 0005: AC-02–AC-10
@@ -477,226 +477,317 @@ describe('PokemonCard – header image and responsive width (spec 0011)', () => 
   });
 });
 
-describe('PokemonCard – move type coverage (spec 0012)', () => {
-  // AC-17 (visual group distinguishability), AC-18 (compact at 375px), AC-19 (visual hierarchy)
-  // and AC-21 (next build) require manual QA.
+describe('PokemonCard – move list (spec 0013)', () => {
+  // AC-20 (visual group distinguishability), AC-21 (elite legibility), AC-24 (label hierarchy),
+  // AC-27 (stat bar dominance), AC-28 (375px overflow), and AC-30 (next build) require manual QA.
 
-  const QUICK_TYPES = ['Fire', 'Normal'];
-  const CHARGED_TYPES = ['Fire', 'Flying', 'Dragon'];
+  const QUICK_MOVES: MoveEntry[] = [
+    { name: 'Air Slash', typeId: 'Flying', isElite: false },
+    { name: 'Ember', typeId: 'Fire', isElite: true },
+  ];
+  const CHARGED_MOVES: MoveEntry[] = [
+    { name: 'Flamethrower', typeId: 'Fire', isElite: false },
+    { name: 'Dragon Claw', typeId: 'Dragon', isElite: false },
+    { name: 'Overheat', typeId: 'Fire', isElite: true },
+  ];
 
-  // AC-01: move-type-section inside card-content-section
-  it('AC-01: move-type-section is present inside card-content-section when Pokémon has moves', () => {
+  // AC-01: move-section inside card-content-section
+  it('AC-01: move-section is present inside card-content-section when Pokémon has moves', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
     const content = screen.getByTestId('card-content-section');
-    expect(within(content).getByTestId('move-type-section')).toBeInTheDocument();
+    expect(within(content).getByTestId('move-section')).toBeInTheDocument();
   });
 
-  // AC-02: move-type-section not inside card-header
-  it('AC-02: move-type-section is not inside card-header', () => {
+  // AC-02: move-section not inside card-header
+  it('AC-02: move-section is not inside card-header', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
-    expect(within(screen.getByTestId('card-header')).queryByTestId('move-type-section')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('card-header')).queryByTestId('move-section')).not.toBeInTheDocument();
   });
 
-  // AC-03: move-type-section follows stat-bar-sta in DOM order
-  it('AC-03: move-type-section appears after stat-bar-sta in document order', () => {
+  // AC-03: move-section follows stat-bar-sta in DOM order
+  it('AC-03: move-section appears after stat-bar-sta in document order', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
     const content = screen.getByTestId('card-content-section');
     const allNodes = Array.from(content.querySelectorAll('[data-testid]'));
     const staIdx = allNodes.findIndex((n) => n.getAttribute('data-testid') === 'stat-bar-sta');
-    const sectionIdx = allNodes.findIndex((n) => n.getAttribute('data-testid') === 'move-type-section');
+    const sectionIdx = allNodes.findIndex((n) => n.getAttribute('data-testid') === 'move-section');
     expect(sectionIdx).toBeGreaterThan(staIdx);
   });
 
-  // AC-03b: move-type-section absent when both pools empty
-  it('AC-03b: move-type-section is absent when both quickMoveTypes and chargedMoveTypes are empty', () => {
+  // AC-04: move-section absent when both pools empty (test fixture)
+  it('AC-04: move-section is absent when both quick and charged move pools are empty', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={[]} chargedMoveTypes={[]} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={[]} onSelect={jest.fn()} />
     );
-    expect(screen.queryByTestId('move-type-section')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('move-section')).not.toBeInTheDocument();
   });
 
-  // AC-03b: move-type-section absent when props omitted (defaults to empty)
-  it('AC-03b: move-type-section absent when move type props are omitted', () => {
+  it('AC-04: move-section is absent when move props are omitted', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} onSelect={jest.fn()} />
     );
+    expect(screen.queryByTestId('move-section')).not.toBeInTheDocument();
+  });
+
+  // AC-05: move-type-section (iteration 12 element) is retired
+  it('AC-05: no element with testid move-type-section is present on the card', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
     expect(screen.queryByTestId('move-type-section')).not.toBeInTheDocument();
   });
 
-  // AC-04: quick-move-type-group present inside move-type-section
-  it('AC-04: quick-move-type-group is present inside move-type-section when Pokémon has quick moves', () => {
+  // AC-06: quick-moves-group present inside move-section
+  it('AC-06: quick-moves-group is present inside move-section when Pokémon has quick moves', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={[]} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
     );
-    expect(within(screen.getByTestId('move-type-section')).getByTestId('quick-move-type-group')).toBeInTheDocument();
+    expect(within(screen.getByTestId('move-section')).getByTestId('quick-moves-group')).toBeInTheDocument();
   });
 
-  // AC-05: one swatch per unique quick move type, no duplicates
-  it('AC-05: quick-move-type-group contains exactly one swatch per unique type', () => {
+  // AC-07: one move-item per unique quick move
+  it('AC-07: quick-moves-group contains exactly one move-item per unique quick move', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={[]} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
     );
-    const swatches = within(screen.getByTestId('quick-move-type-group')).getAllByTestId('move-type-swatch');
-    expect(swatches).toHaveLength(QUICK_TYPES.length);
+    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
+    expect(items).toHaveLength(QUICK_MOVES.length);
   });
 
-  // AC-06: each swatch in quick group has correct data-type-id
-  it('AC-06: each swatch in quick-move-type-group carries the correct data-type-id', () => {
+  // AC-08: each move-item in quick-moves-group has correct data-move-name
+  it('AC-08: each move-item in quick-moves-group carries data-move-name equal to the move name', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={[]} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
     );
-    const swatches = within(screen.getByTestId('quick-move-type-group')).getAllByTestId('move-type-swatch');
-    const ids = swatches.map((s) => s.getAttribute('data-type-id'));
-    for (const type of QUICK_TYPES) {
-      expect(ids).toContain(type);
+    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
+    const names = items.map((i) => i.getAttribute('data-move-name'));
+    for (const move of QUICK_MOVES) expect(names).toContain(move.name);
+  });
+
+  // AC-09: no duplicate data-move-name in quick-moves-group
+  it('AC-09: no two items in quick-moves-group share the same data-move-name', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
+    const names = items.map((i) => i.getAttribute('data-move-name'));
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  // AC-10: quick-moves-group absent when no quick moves
+  it('AC-10: quick-moves-group is absent when quick move pool is empty', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('quick-moves-group')).not.toBeInTheDocument();
+  });
+
+  it('quick-moves-label is absent when quick-moves-group is absent', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('quick-moves-label')).not.toBeInTheDocument();
+  });
+
+  // AC-11: charged-moves-group present inside move-section
+  it('AC-11: charged-moves-group is present inside move-section when Pokémon has charged moves', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    expect(within(screen.getByTestId('move-section')).getByTestId('charged-moves-group')).toBeInTheDocument();
+  });
+
+  // AC-12: one move-item per unique charged move
+  it('AC-12: charged-moves-group contains exactly one move-item per unique charged move', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    expect(items).toHaveLength(CHARGED_MOVES.length);
+  });
+
+  // AC-13: each move-item in charged-moves-group has correct data-move-name
+  it('AC-13: each move-item in charged-moves-group carries data-move-name equal to the move name', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    const names = items.map((i) => i.getAttribute('data-move-name'));
+    for (const move of CHARGED_MOVES) expect(names).toContain(move.name);
+  });
+
+  // AC-14: no duplicate data-move-name in charged-moves-group
+  it('AC-14: no two items in charged-moves-group share the same data-move-name', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    const names = items.map((i) => i.getAttribute('data-move-name'));
+    expect(new Set(names).size).toBe(names.length);
+  });
+
+  // AC-15: charged-moves-group absent when no charged moves
+  it('AC-15: charged-moves-group is absent when charged move pool is empty', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('charged-moves-group')).not.toBeInTheDocument();
+  });
+
+  it('charged-moves-label is absent when charged-moves-group is absent', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('charged-moves-label')).not.toBeInTheDocument();
+  });
+
+  // AC-16: data-move-type matches the move's typeId
+  it('AC-16: each move-item carries data-move-type equal to the move typeId', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const allItems = screen.getAllByTestId('move-item');
+    const allMoves = [...QUICK_MOVES, ...CHARGED_MOVES];
+    for (const item of allItems) {
+      const moveName = item.getAttribute('data-move-name');
+      const expected = allMoves.find((m) => m.name === moveName);
+      expect(item.getAttribute('data-move-type')).toBe(expected?.typeId);
     }
   });
 
-  // AC-07: no duplicate data-type-id in quick group (uniqueness enforced at data level via parsePokemonData)
-  it('AC-07: no two swatches in quick-move-type-group share the same data-type-id', () => {
+  // AC-17: every data-move-type is a key in TYPE_COLORS
+  it('AC-17: every data-move-type value is a key in TYPE_COLORS', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={['Fire', 'Normal', 'Flying']} chargedMoveTypes={[]} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
-    const swatches = within(screen.getByTestId('quick-move-type-group')).getAllByTestId('move-type-swatch');
-    const ids = swatches.map((s) => s.getAttribute('data-type-id'));
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  // AC-08: quick-move-type-group absent when no quick moves
-  it('AC-08: quick-move-type-group is absent when quickMoveTypes is empty', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={[]} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
-    );
-    expect(screen.queryByTestId('quick-move-type-group')).not.toBeInTheDocument();
-  });
-
-  // AC-09: charged-move-type-group present inside move-type-section
-  it('AC-09: charged-move-type-group is present inside move-type-section when Pokémon has charged moves', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={[]} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
-    );
-    expect(within(screen.getByTestId('move-type-section')).getByTestId('charged-move-type-group')).toBeInTheDocument();
-  });
-
-  // AC-10: one swatch per unique charged move type
-  it('AC-10: charged-move-type-group contains exactly one swatch per unique type', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={[]} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
-    );
-    const swatches = within(screen.getByTestId('charged-move-type-group')).getAllByTestId('move-type-swatch');
-    expect(swatches).toHaveLength(CHARGED_TYPES.length);
-  });
-
-  // AC-11: each swatch in charged group has correct data-type-id
-  it('AC-11: each swatch in charged-move-type-group carries the correct data-type-id', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={[]} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
-    );
-    const swatches = within(screen.getByTestId('charged-move-type-group')).getAllByTestId('move-type-swatch');
-    const ids = swatches.map((s) => s.getAttribute('data-type-id'));
-    for (const type of CHARGED_TYPES) {
-      expect(ids).toContain(type);
+    for (const item of screen.getAllByTestId('move-item')) {
+      expect(TYPE_COLORS).toHaveProperty(item.getAttribute('data-move-type')!);
     }
   });
 
-  // AC-12: no duplicate data-type-id in charged group (uniqueness enforced at data level via parsePokemonData)
-  it('AC-12: no two swatches in charged-move-type-group share the same data-type-id', () => {
+  // AC-18: elite move item carries data-is-elite="true"
+  it('AC-18: elite move item carries data-is-elite="true"', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={[]} chargedMoveTypes={['Fire', 'Flying', 'Dragon']} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
-    const swatches = within(screen.getByTestId('charged-move-type-group')).getAllByTestId('move-type-swatch');
-    const ids = swatches.map((s) => s.getAttribute('data-type-id'));
-    expect(new Set(ids).size).toBe(ids.length);
-  });
-
-  // AC-13: charged-move-type-group absent when no charged moves
-  it('AC-13: charged-move-type-group is absent when chargedMoveTypes is empty', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={[]} onSelect={jest.fn()} />
-    );
-    expect(screen.queryByTestId('charged-move-type-group')).not.toBeInTheDocument();
-  });
-
-  // AC-14: each swatch data-type-color matches TYPE_COLORS
-  it('AC-14: each swatch data-type-color matches the TYPE_COLORS registry entry', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
-    );
-    const swatches = screen.getAllByTestId('move-type-swatch');
-    for (const swatch of swatches) {
-      const typeId = swatch.getAttribute('data-type-id')!;
-      const color = swatch.getAttribute('data-type-color');
-      expect(color).toBe(TYPE_COLORS[typeId] ?? '#888888');
+    const eliteNames = [...QUICK_MOVES, ...CHARGED_MOVES].filter((m) => m.isElite).map((m) => m.name);
+    for (const item of screen.getAllByTestId('move-item')) {
+      if (eliteNames.includes(item.getAttribute('data-move-name')!)) {
+        expect(item.getAttribute('data-is-elite')).toBe('true');
+      }
     }
   });
 
-  // AC-15: no type name text inside move-type-section
-  it('AC-15: no type name text appears inside move-type-section', () => {
+  // AC-19: non-elite move item carries data-is-elite="false"
+  it('AC-19: non-elite move item carries data-is-elite="false"', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
-    const section = screen.getByTestId('move-type-section');
-    expect(section.textContent).toBe('');
+    const nonEliteNames = [...QUICK_MOVES, ...CHARGED_MOVES].filter((m) => !m.isElite).map((m) => m.name);
+    for (const item of screen.getAllByTestId('move-item')) {
+      if (nonEliteNames.includes(item.getAttribute('data-move-name')!)) {
+        expect(item.getAttribute('data-is-elite')).toBe('false');
+      }
+    }
   });
 
-  // AC-16: no numeric content in move-type-section
-  it('AC-16: no numeric content appears inside move-type-section', () => {
+  // AC-22: quick-moves-label present with correct text
+  it('AC-22: quick-moves-label is present with text "Quick moves" when quick moves exist', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={[]} onSelect={jest.fn()} />
     );
-    const section = screen.getByTestId('move-type-section');
-    expect(section.textContent).not.toMatch(/\d/);
+    const label = screen.getByTestId('quick-moves-label');
+    expect(label).toBeInTheDocument();
+    expect(label.textContent).toBe('Quick moves');
   });
 
-  // AC-20: content region data-content-tint-opacity remains 0
-  it('AC-20: card-content-section data-content-tint-opacity remains 0 with move type swatches', () => {
+  // AC-23: charged-moves-label present with correct text
+  it('AC-23: charged-moves-label is present with text "Charged moves" when charged moves exist', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[]} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const label = screen.getByTestId('charged-moves-label');
+    expect(label).toBeInTheDocument();
+    expect(label.textContent).toBe('Charged moves');
+  });
+
+  // AC-25: no numeric move statistics in move-section
+  it('AC-25: no numeric content appears inside move-section', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const text = screen.getByTestId('move-section').textContent ?? '';
+    expect(text).not.toMatch(/\b\d+\b/);
+  });
+
+  // AC-26: no type name text inside any move-item
+  it('AC-26: no move-item text content equals a type name', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
+    );
+    const typeNames = Object.keys(TYPE_COLORS);
+    for (const item of screen.getAllByTestId('move-item')) {
+      expect(typeNames).not.toContain(item.textContent);
+    }
+  });
+
+  // AC-29: content region data-content-tint-opacity remains 0
+  it('AC-29: card-content-section data-content-tint-opacity remains 0 with move section', () => {
+    render(
+      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
     const opacity = parseFloat(screen.getByTestId('card-content-section').getAttribute('data-content-tint-opacity') ?? '1');
     expect(opacity).toBe(0);
   });
 
   // Both groups present when both pools non-empty
-  it('both quick-move-type-group and charged-move-type-group are present when both pools are non-empty', () => {
+  it('both quick-moves-group and charged-moves-group are present when both pools are non-empty', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
-    expect(screen.getByTestId('quick-move-type-group')).toBeInTheDocument();
-    expect(screen.getByTestId('charged-move-type-group')).toBeInTheDocument();
+    expect(screen.getByTestId('quick-moves-group')).toBeInTheDocument();
+    expect(screen.getByTestId('charged-moves-group')).toBeInTheDocument();
   });
 
-  // Stat bars, evolution, and existing card structure remain intact
-  it('stat bars remain present when move type section is displayed', () => {
+  // Stat bars and evolution remain intact
+  it('stat bars remain present when move section is displayed', () => {
     render(
       <PokemonCard name="Ivysaur" primaryType={GRASS} secondaryType={POISON} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom="Bulbasaur" evolvesTo={['Venusaur']} quickMoveTypes={QUICK_TYPES} chargedMoveTypes={CHARGED_TYPES} onSelect={jest.fn()} />
+        evolvesFrom="Bulbasaur" evolvesTo={['Venusaur']} quickMoves={QUICK_MOVES} chargedMoves={CHARGED_MOVES} onSelect={jest.fn()} />
     );
     expect(screen.getByTestId('stat-bar-atk')).toBeInTheDocument();
     expect(screen.getByTestId('stat-bar-def')).toBeInTheDocument();

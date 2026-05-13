@@ -9,6 +9,12 @@ export interface PokemonStats {
   readonly stamina: number;
 }
 
+export interface MoveEntry {
+  readonly name: string;
+  readonly typeId: string;
+  readonly isElite: boolean;
+}
+
 export interface PokemonEntry {
   readonly name: string;
   readonly primaryType: PokemonType;
@@ -17,8 +23,8 @@ export interface PokemonEntry {
   readonly evolvesFrom: string | null;
   readonly evolvesTo: readonly string[];
   readonly imageUrl: string | null;
-  readonly quickMoveTypes: readonly string[];
-  readonly chargedMoveTypes: readonly string[];
+  readonly quickMoves: readonly MoveEntry[];
+  readonly chargedMoves: readonly MoveEntry[];
 }
 
 export interface StatMaxima {
@@ -120,22 +126,29 @@ function extractTypeName(typeField: unknown): string | null {
   return typeof english === 'string' && english.length > 0 ? english : null;
 }
 
-function extractMoveTypesFromCollection(collection: unknown): string[] {
+function extractMovesFromCollection(collection: unknown, isElite: boolean): MoveEntry[] {
   if (typeof collection !== 'object' || collection === null || Array.isArray(collection)) {
     return [];
   }
-  const types: string[] = [];
+  const moves: MoveEntry[] = [];
   for (const move of Object.values(collection as Record<string, unknown>)) {
-    const typeName = extractTypeName((move as Record<string, unknown>).type);
-    if (typeName) types.push(typeName);
+    const name = extractEnglishName(move);
+    const typeId = extractTypeName((move as Record<string, unknown>).type);
+    if (!name) {
+      console.warn('Move object has no English name; omitting from move list');
+      continue;
+    }
+    if (!typeId) continue;
+    moves.push({ name, typeId, isElite });
   }
-  return types;
+  return moves;
 }
 
-function uniqueTypes(...lists: string[][]): readonly string[] {
-  const seen = new Set<string>();
-  for (const list of lists) for (const t of list) seen.add(t);
-  return Object.freeze([...seen]);
+function mergeMoves(regular: MoveEntry[], elite: MoveEntry[]): readonly MoveEntry[] {
+  const seen = new Map<string, MoveEntry>();
+  for (const m of regular) seen.set(m.name, m);
+  for (const m of elite) seen.set(m.name, m);
+  return Object.freeze([...seen.values()]);
 }
 
 export function parsePokemonData(raw: unknown): PokemonCatalog {
@@ -193,13 +206,13 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     );
 
     const rawItem = item as Record<string, unknown>;
-    const quickMoveTypes = uniqueTypes(
-      extractMoveTypesFromCollection(rawItem.quickMoves),
-      extractMoveTypesFromCollection(rawItem.eliteQuickMoves),
+    const quickMoves = mergeMoves(
+      extractMovesFromCollection(rawItem.quickMoves, false),
+      extractMovesFromCollection(rawItem.eliteQuickMoves, true),
     );
-    const chargedMoveTypes = uniqueTypes(
-      extractMoveTypesFromCollection(rawItem.cinematicMoves),
-      extractMoveTypesFromCollection(rawItem.eliteCinematicMoves),
+    const chargedMoves = mergeMoves(
+      extractMovesFromCollection(rawItem.cinematicMoves, false),
+      extractMovesFromCollection(rawItem.eliteCinematicMoves, true),
     );
 
     entries.push({
@@ -210,8 +223,8 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       evolvesFrom,
       evolvesTo,
       imageUrl: extractImageUrl(item),
-      quickMoveTypes,
-      chargedMoveTypes,
+      quickMoves,
+      chargedMoves,
     });
   }
 

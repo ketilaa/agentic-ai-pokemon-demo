@@ -56,8 +56,8 @@ function PokemonExplorerInner({ entries, statMaxima }: Props) {
             evolvesFrom={selectedEntry.evolvesFrom}
             evolvesTo={selectedEntry.evolvesTo}
             imageUrl={selectedEntry.imageUrl}
-            quickMoveTypes={selectedEntry.quickMoveTypes}
-            chargedMoveTypes={selectedEntry.chargedMoveTypes}
+            quickMoves={selectedEntry.quickMoves}
+            chargedMoves={selectedEntry.chargedMoves}
             onSelect={handleSelect}
           />
         </Box>
