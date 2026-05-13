@@ -1,6 +1,6 @@
 # Spec 0011 – Pokémon Card Header Image and Responsive Width
 
-**Status:** Draft  
+**Status:** Complete  
 **Iteration:** 11  
 **Author:** Architect agent  
 **Date:** 2026-05-13
