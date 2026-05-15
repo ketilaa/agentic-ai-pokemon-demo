@@ -1,6 +1,6 @@
 # Spec 0017 – Pokémon Card Multi-Role Move Recommendations
 
-**Status:** Draft  
+**Status:** Revised  
 **Iteration:** 17  
 **Author:** Architect agent  
 **Date:** 2026-05-15
@@ -31,7 +31,7 @@ The fix is a role-aware recommendation model:
 2. For each viable role, independently select the best Quick move and the best Charged move.
 3. All moves recommended for any viable role receive recommendation emphasis.
 
-Single-role Pokémon are unaffected in practice: one role yields one Quick and one Charged recommendation, which is identical to the current output.
+Single-role Pokémon are not exempt from this change. A Pokémon with exactly one viable role has its recommendations restricted to type-T moves — non-type moves in its pool are excluded from recommendation consideration. In cases where the spec 0016 full-pool algorithm would have recommended a non-STAB move (because its energy generation or power advantage exceeded the STAB threshold), spec 0017 produces a different result. This is intentional: a Pokémon fielded for a specific type role should have its recommended moves serve that role, not moves that score marginally higher on a single isolated stat.
 
 ---
 
@@ -73,7 +73,7 @@ When the role's Charged move pool contains exactly one move, that move is recomm
 
 Each viable role yields at most one recommended Quick move and at most one recommended Charged move. A move recommended for any viable role has `isRecommended: true`. A move not recommended for any viable role has `isRecommended: false`.
 
-A move may appear in a Quick pool that covers multiple viable roles only if it is of a type matching multiple of the Pokémon's own types — which is impossible in the current dataset (each move has exactly one type). In practice, each move belongs to at most one role's pool, so a move is either recommended for exactly one role or not recommended at all.
+A move may appear in a Quick pool that covers multiple viable roles only if it is of a type matching multiple of the Pokémon's own types — which is impossible in the current dataset (each move has exactly one type). In practice, each move belongs to at most one role's pool, so each move either receives `isRecommended: true` (selected as the best move in the pool of exactly one viable role) or `isRecommended: false` (not selected by any role). No role information is attached to `isRecommended`; the flag indicates selection, not role membership.
 
 ### 3.3 Fallback: No Viable Roles
 
@@ -103,6 +103,7 @@ All functional behavior from Iterations 13–16 is preserved, except that:
 
 - The spec 0016 §3.3 constraint "at most one Quick move and at most one Charged move receive recommendation emphasis per Pokémon" is superseded by §3.4 of this spec.
 - All spec 0016 per-move recommendation logic (§§3.1–3.2) continues to apply unchanged within each role's restricted pool.
+- For any Pokémon with one or more viable roles (§3.1), the per-role algorithm in §3.2 replaces the spec 0016 full-pool algorithm. Non-type moves — moves whose type does not match any viable role's type — are excluded from recommendation consideration. This applies to both single-role and multi-role Pokémon. Only the §3.3 fallback path uses the full unrestricted move pool.
 
 ---
 
@@ -139,7 +140,7 @@ All functional behavior from Iterations 13–16 is preserved, except that:
 | # | Criterion | How to verify |
 |---|-----------|---------------|
 | AC-01 | A Pokémon that has STAB quick moves and STAB charged moves for both of its types has two viable roles identified. | Identify a Pokémon in the live dataset that (a) has two types, (b) has at least one quick move of each type, and (c) has at least one charged move of each type. Tyranitar (Rock/Dark) is the primary live-dataset candidate: Smack Down (Rock quick), Bite or Snarl (Dark quick), Stone Edge (Rock charged), Crunch (Dark charged). Render the Pokémon; confirm that exactly two Quick moves carry `data-is-recommended="true"` (one Rock-type, one Dark-type) and exactly two Charged moves carry `data-is-recommended="true"` (one Rock-type, one Dark-type). |
-| AC-02 | A Pokémon that has STAB quick and charged moves for only one of its types has one viable role and produces exactly one recommended Quick move and one recommended Charged move. | Identify a Pokémon whose secondary type has no matching quick moves or no matching charged moves in its pool. Absol (Dark/no secondary) has a single type — it trivially qualifies. Identify at least one dual-type Pokémon where one type lacks move coverage in either slot. Render the Pokémon; confirm exactly one `move-item` in each group carries `data-is-recommended="true"`. |
+| AC-02 | A Pokémon that has STAB quick and charged moves for only one of its types has one viable role and produces exactly one recommended Quick move and one recommended Charged move. | Identify a Pokémon whose secondary type has no matching quick moves or no matching charged moves in its pool. Absol (Dark/no secondary) has a single type — it trivially qualifies. Identify at least one dual-type Pokémon where one type lacks move coverage in either slot. Render the Pokémon; confirm exactly one `move-item` in each group carries `data-is-recommended="true"`. If no suitable dual-type live-dataset Pokémon exists, introduce a test fixture. |
 | AC-03 | A Pokémon where neither type has both a quick move and a charged move of that type (no viable role) falls back to single-pool recommendation and produces exactly one recommended Quick move and one recommended Charged move. | Introduce a test fixture representing a dual-type Pokémon whose quick moves cover only one type and whose charged moves cover only the other type (no single type spans both slots). Render the fixture; confirm exactly one `move-item` in each group carries `data-is-recommended="true"`. |
 
 ### Per-role recommendation — quick moves
@@ -161,7 +162,7 @@ All functional behavior from Iterations 13–16 is preserved, except that:
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-09 | A single-role Pokémon has exactly one Quick move and exactly one Charged move carrying `data-is-recommended="true"`, identical to the output the spec 0016 algorithm would produce when run on its full pool. | Identify at least five single-role Pokémon from the live dataset. Render each; confirm exactly one `move-item` in each group carries `data-is-recommended="true"`. Confirm that the recommended move matches what the spec 0016 full-pool algorithm selects (the per-role algorithm applied to a single type's subset produces the same winner as the full-pool algorithm for a type-consistent pool). |
+| AC-09 | A single-role Pokémon has exactly one Quick move and exactly one Charged move carrying `data-is-recommended="true"`, both of the Pokémon's viable role type. | Identify at least five single-role Pokémon from the live dataset. Render each; confirm exactly one `move-item` in each group carries `data-is-recommended="true"`. Confirm that the recommended Quick move has the highest energy generation among all Quick moves of the viable role's type in the pool, and that the recommended Charged move is selected by the spec 0016 §3.2 factor ordering applied to Charged moves of that type only. Where the spec 0016 full-pool algorithm would have recommended a non-type move (e.g. a non-STAB Quick move with higher energy generation), the spec 0017 result will differ — this divergence is expected and must not be treated as a regression. If no live-dataset single-role Pokémon has a non-type move in its pool that would have won under spec 0016, introduce a test fixture demonstrating the divergence. |
 
 ### Completeness and determinism
 
@@ -192,6 +193,8 @@ All functional behavior from Iterations 13–16 is preserved, except that:
 ---
 
 ## 7. Risks
+
+- **Behavioral change for single-role Pokémon.** The per-role algorithm restricts recommendations to type-T moves for all Pokémon with viable roles, including single-role ones. Any single-role Pokémon whose spec 0016 recommendation was a non-STAB move (because the non-STAB move's energy or power advantage exceeded the STAB threshold) will produce a different recommendation under spec 0017. The developer must identify such Pokémon in the live dataset, confirm the change is intentional for each case, and update any test that asserts a specific non-STAB move is recommended for a single-role Pokémon.
 
 - **`isRecommended` semantics change.** The current model guarantees at most one `true` per group. Under this spec, multiple moves in the same group can have `isRecommended: true`. Any code, test, or component that asserts `exactly one recommended move per group` must be updated. The developer must audit all test assertions and component logic that depend on the "at most one" invariant before shipping.
 
