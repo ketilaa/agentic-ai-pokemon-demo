@@ -631,12 +631,15 @@ describe('parsePokemonData - move recommendation (spec 0014 / spec 0015)', () =>
     expect(chargedMoves.filter((m) => m.isRecommended === true)).toHaveLength(1);
   });
 
-  it('tiebreaker selects the alphabetically first quick move when energy values are equal', () => {
+  it('tiebreaker selects the alphabetically first quick move when all factors are equal', () => {
+    // Both moves are Fire-type (both STAB for this Fire Pokémon), equal energy, not high-attack.
+    // With a single entry, attack=100 equals the threshold so isHighAttack is false.
+    // Only the alphabetical tiebreaker differentiates them.
     const raw = [{
       ...makeEntry('A', 'Fire'),
       quickMoves: {
-        Z: makeMove('Normal', 'Zen Headbutt', { energy: 10 }),
-        A: makeMove('Fire', 'Astonish', { energy: 10 }),
+        Z: makeMove('Fire', 'Zen Headbutt', { energy: 10 }),
+        A: makeMove('Fire', 'Astonish',     { energy: 10 }),
       },
       eliteQuickMoves: [],
     }];
@@ -870,6 +873,161 @@ describe('parsePokemonData - charged move PvE recommendation (spec 0015)', () =>
     const move = parsePokemonData(raw).entries[0].chargedMoves[0] as unknown as Record<string, unknown>;
     expect(move['_energyCost']).toBeUndefined();
     expect(move['energy']).toBeUndefined();
+  });
+});
+
+// Helpers for spec 0016 role-identity tests.
+// 3 Pokémon with attack=100 + 1 with attack=300:
+//   mean = (100+100+100+300)/4 = 150
+//   variance = ((50²+50²+50²+150²)/4) = (2500+2500+2500+22500)/4 = 7500
+//   stdev = sqrt(7500) ≈ 86.6
+//   threshold ≈ 236.6 → attack=300 qualifies as high-attack
+const makeNormalAtkEntry = (name: string) =>
+  makeEntry(name, 'Water', undefined, { attack: 100, defense: 150, stamina: 200 });
+
+function withHighAtkPokemon(
+  highAtkEntry: ReturnType<typeof makeEntry>,
+  moves: Record<string, unknown>,
+): unknown[] {
+  return [
+    { ...makeNormalAtkEntry('Normal1') },
+    { ...makeNormalAtkEntry('Normal2') },
+    { ...makeNormalAtkEntry('Normal3') },
+    { ...highAtkEntry, ...moves },
+  ];
+}
+
+describe('parsePokemonData - spec 0016 STAB quick move recommendation', () => {
+  it('AC-01: STAB quick move preferred when 20% energy bonus compensates for energy deficit', () => {
+    // Bug Pokémon: Infestation (Bug STAB, energy=13) vs Confusion (Psychic non-STAB, energy=14)
+    // 13 × 1.2 = 15.6 ≥ 14 → STAB wins
+    const raw = [{
+      ...makeEntry('Caterpie', 'Bug'),
+      quickMoves: {
+        INFESTATION_FAST: makeMove('Bug',     'Infestation', { energy: 13 }),
+        CONFUSION_FAST:   makeMove('Psychic', 'Confusion',   { energy: 14 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Infestation')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Confusion')?.isRecommended).toBe(false);
+  });
+
+  it('AC-02: non-STAB quick move preferred when energy advantage is too large for STAB to overcome', () => {
+    // Poison Pokémon: Poison Sting (Poison STAB, energy=6) vs Peck (Flying non-STAB, energy=10)
+    // 6 × 1.2 = 7.2 < 10 → STAB does not compensate; energy wins
+    const raw = [{
+      ...makeEntry('Ekans', 'Poison'),
+      quickMoves: {
+        POISON_STING_FAST: makeMove('Poison', 'Poison Sting', { energy: 6 }),
+        PECK_FAST:         makeMove('Flying', 'Peck',         { energy: 10 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Peck')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Poison Sting')?.isRecommended).toBe(false);
+  });
+
+  it('AC-03: exactly one quick move is recommended when all moves are STAB', () => {
+    const raw = [{
+      ...makeEntry('Charmander', 'Fire'),
+      quickMoves: {
+        EMBER_FAST:         makeMove('Fire', 'Ember',          { energy: 10 }),
+        FIRE_FANG_FAST:     makeMove('Fire', 'Fire Fang',      { energy: 8  }),
+        FIRE_SPIN_FAST:     makeMove('Fire', 'Fire Spin',      { energy: 14 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    const recommended = quickMoves.filter((m) => m.isRecommended);
+    expect(recommended).toHaveLength(1);
+    expect(quickMoves.find((m) => m.name === 'Fire Spin')?.isRecommended).toBe(true);
+  });
+
+  it('AC-04: among non-STAB moves, highest energy wins', () => {
+    // Steel Pokémon with only Normal-type moves (no STAB)
+    const raw = [{
+      ...makeEntry('Magnemite', 'Steel'),
+      quickMoves: {
+        TACKLE_FAST:     makeMove('Normal', 'Tackle',      { energy: 8  }),
+        SCRATCH_FAST:    makeMove('Normal', 'Scratch',     { energy: 10 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Scratch')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Tackle')?.isRecommended).toBe(false);
+  });
+});
+
+describe('parsePokemonData - spec 0016 role identity quick move recommendation', () => {
+  it('AC-05: high-Attack Dragon/Flying prefers Dragon quick move over Flying when both STAB, equal energy', () => {
+    // Both Dragon Tail and Air Slash are STAB for Dragon/Flying; equal energy=8.
+    // Factor 1 (STAB) doesn't differentiate; Factor 2 (role identity) picks primary type Dragon.
+    const highAtkDragonFlying = makeEntry('Rayquaza', 'Dragon', 'Flying', { attack: 300, defense: 100, stamina: 100 });
+    const raw = withHighAtkPokemon(highAtkDragonFlying, {
+      quickMoves: {
+        DRAGON_TAIL_FAST: makeMove('Dragon', 'Dragon Tail', { energy: 8 }),
+        AIR_SLASH_FAST:   makeMove('Flying', 'Air Slash',   { energy: 8 }),
+      },
+      eliteQuickMoves: [],
+    });
+    const { quickMoves } = parsePokemonData(raw).entries.find((e) => e.name === 'Rayquaza')!;
+    expect(quickMoves.find((m) => m.name === 'Dragon Tail')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Air Slash')?.isRecommended).toBe(false);
+  });
+
+  it('AC-06: non-high-Attack Fire/Flying prefers higher-energy Flying move over lower-energy Fire move', () => {
+    // Normal-attack: role identity does not apply. Energy wins.
+    // Ember (Fire primary, energy=8) vs Air Slash (Flying secondary, energy=10).
+    // Both STAB; equal STAB so Factor 2 would apply only if high-attack — it is not.
+    const normalAtkEntry = makeEntry('Charizard', 'Fire', 'Flying', { attack: 100, defense: 100, stamina: 100 });
+    const raw = [{
+      ...normalAtkEntry,
+      quickMoves: {
+        EMBER_FAST:     makeMove('Fire',   'Ember',     { energy: 8  }),
+        AIR_SLASH_FAST: makeMove('Flying', 'Air Slash', { energy: 10 }),
+      },
+      eliteQuickMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Air Slash')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Ember')?.isRecommended).toBe(false);
+  });
+});
+
+describe('parsePokemonData - spec 0016 role identity charged move recommendation', () => {
+  it('AC-07: high-Attack Dragon/Flying prefers Dragon charged move over Flying when both STAB, equal power and cost', () => {
+    const highAtkDragonFlying = makeEntry('Rayquaza', 'Dragon', 'Flying', { attack: 300, defense: 100, stamina: 100 });
+    const raw = withHighAtkPokemon(highAtkDragonFlying, {
+      cinematicMoves: {
+        DRAGON_CLAW: makeMove('Dragon', 'Dragon Claw', { power: 50, energy: -50 }),
+        AERIAL_ACE:  makeMove('Flying', 'Aerial Ace',  { power: 50, energy: -50 }),
+      },
+      eliteCinematicMoves: [],
+    });
+    const { chargedMoves } = parsePokemonData(raw).entries.find((e) => e.name === 'Rayquaza')!;
+    expect(chargedMoves.find((m) => m.name === 'Dragon Claw')?.isRecommended).toBe(true);
+    expect(chargedMoves.find((m) => m.name === 'Aerial Ace')?.isRecommended).toBe(false);
+  });
+
+  it('AC-08: fragility overrides role identity — low-cost non-STAB preferred over high-cost primary-type STAB', () => {
+    // High-Attack, fragile Psychic Pokémon:
+    //   Psycho Cut (Psychic primary STAB, energy=-100) vs Body Slam (Normal non-STAB, energy=-50)
+    // Factor 1 fragility: cost -100 ≥ 75 threshold, -50 ≤ 50 → Body Slam wins regardless of STAB/role
+    const highAtkFragile = makeEntry('Alakazam', 'Psychic', undefined, { attack: 300, defense: 50, stamina: 50 });
+    const raw = withHighAtkPokemon(highAtkFragile, {
+      cinematicMoves: {
+        PSYCHO_CUT:  makeMove('Psychic', 'Psycho Cut',  { power: 70,  energy: -100 }),
+        BODY_SLAM:   makeMove('Normal',  'Body Slam',   { power: 60,  energy: -50  }),
+      },
+      eliteCinematicMoves: [],
+    });
+    const { chargedMoves } = parsePokemonData(raw).entries.find((e) => e.name === 'Alakazam')!;
+    expect(chargedMoves.find((m) => m.name === 'Body Slam')?.isRecommended).toBe(true);
+    expect(chargedMoves.find((m) => m.name === 'Psycho Cut')?.isRecommended).toBe(false);
   });
 });
 

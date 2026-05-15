@@ -176,19 +176,6 @@ function mergeMoveEntries(regular: MoveDraft[], elite: MoveDraft[]): readonly Mo
   return Object.freeze([...seen.values()]);
 }
 
-// Selects the recommended quick move (highest energy generation; alphabetical tiebreaker).
-function applyRecommended(drafts: readonly MoveDraft[]): readonly MoveEntry[] {
-  if (drafts.length === 0) return Object.freeze([]);
-  const best = [...drafts].sort((a, b) =>
-    b._stat !== a._stat ? b._stat - a._stat : a.name.localeCompare(b.name, 'en')
-  )[0];
-  return Object.freeze(
-    drafts.map((m) =>
-      Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
-    )
-  );
-}
-
 // Fragility threshold: Pokémon whose stamina+defense falls at or below 65% of the dataset mean
 // are treated as low-survivability for charged move recommendation (spec 0015 Factor 1).
 function computeFragileThreshold(allStats: readonly PokemonStats[]): number {
@@ -197,17 +184,76 @@ function computeFragileThreshold(allStats: readonly PokemonStats[]): number {
   return mean * 0.65;
 }
 
-// Selects the recommended charged move using 4-factor PvE viability (spec 0015 §3.2).
+// High-Attack threshold: mean + population standard deviation of base Attack values.
+// Pokémon above this threshold are treated as type-specialized attackers (spec 0016 Factor 2 / §3.2 Factor 3).
+function computeHighAttackThreshold(allStats: readonly PokemonStats[]): number {
+  if (allStats.length === 0) return Infinity;
+  const attacks = allStats.map((s) => s.attack);
+  const mean = attacks.reduce((sum, v) => sum + v, 0) / attacks.length;
+  const variance = attacks.reduce((sum, v) => sum + (v - mean) ** 2, 0) / attacks.length;
+  return mean + Math.sqrt(variance);
+}
+
+// Selects the recommended quick move using 3-factor PvE viability (spec 0016 §3.1).
+// Factor 1: STAB preferred when stab_energy * 1.2 >= nonstab_energy
+// Factor 2: role identity — primary-type over secondary-type for high-Attack Pokémon
+//           (applies only when Factor 1 did not yield a clear winner)
+// Factor 3: higher energy generation
+// Tiebreaker: alphabetical by move name (localeCompare 'en').
+function applyQuickRecommended(
+  drafts: readonly MoveDraft[],
+  pokemonTypeIds: readonly string[],
+  primaryTypeId: string,
+  isHighAttack: boolean,
+): readonly MoveEntry[] {
+  if (drafts.length === 0) return Object.freeze([]);
+
+  const best = [...drafts].sort((a, b) => {
+    const aStab = pokemonTypeIds.includes(a.typeId);
+    const bStab = pokemonTypeIds.includes(b.typeId);
+
+    // Factor 1: STAB preferred when 20% damage bonus compensates for energy deficit
+    if (aStab !== bStab) {
+      const [stabMove, nonStabMove] = aStab ? [a, b] : [b, a];
+      if (stabMove._stat * 1.2 >= nonStabMove._stat) return aStab ? -1 : 1;
+    }
+
+    // Factor 2: role identity — primary-type over secondary-type for high-Attack Pokémon
+    // Applies only when Factor 1 did not resolve (both moves have the same STAB status)
+    if (isHighAttack && aStab === bStab) {
+      const aPrimary = a.typeId === primaryTypeId;
+      const bPrimary = b.typeId === primaryTypeId;
+      if (aPrimary !== bPrimary) return aPrimary ? -1 : 1;
+    }
+
+    // Factor 3: higher energy generation
+    if (b._stat !== a._stat) return b._stat - a._stat;
+
+    // Tiebreaker: alphabetical by move name
+    return a.name.localeCompare(b.name, 'en');
+  })[0];
+
+  return Object.freeze(
+    drafts.map((m) =>
+      Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
+    )
+  );
+}
+
+// Selects the recommended charged move using 4-factor PvE viability (spec 0015 §3.2, extended by spec 0016 §3.2).
 // Factors in priority order:
 //   1. Survivability-adjusted feasibility — high-cost moves suppressed for fragile Pokémon
 //   2. Energy efficiency — ≤50 energy cost clearly beats 100 energy cost
-//   3. STAB — preferred when 20% bonus overcomes the power gap
+//   3. STAB — preferred when 20% bonus overcomes the power gap;
+//      role identity — primary-type preferred for high-Attack Pokémon when STAB did not differentiate
 //   4. Base power — higher wins among otherwise equal moves
 // Tiebreaker: alphabetical by move name (localeCompare 'en').
 function applyChargedRecommended(
   drafts: readonly MoveDraft[],
   pokemonTypeIds: readonly string[],
+  primaryTypeId: string,
   isFragile: boolean,
+  isHighAttack: boolean,
 ): readonly MoveEntry[] {
   if (drafts.length === 0) return Object.freeze([]);
 
@@ -239,6 +285,14 @@ function applyChargedRecommended(
       if (stabMove._stat * 1.2 >= nonStabMove._stat) return aStab ? -1 : 1;
     }
 
+    // Factor 3 role identity: primary-type preferred when STAB did not differentiate
+    // (both same STAB status: either both STAB or neither STAB)
+    if (isHighAttack && aStab === bStab) {
+      const aPrimary = a.typeId === primaryTypeId;
+      const bPrimary = b.typeId === primaryTypeId;
+      if (aPrimary !== bPrimary) return aPrimary ? -1 : 1;
+    }
+
     // Factor 4: higher base power
     if (b._stat !== a._stat) return b._stat - a._stat;
 
@@ -268,6 +322,7 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     if (stats) allValidStats.push(stats);
   }
   const fragileThreshold = computeFragileThreshold(allValidStats);
+  const highAttackThreshold = computeHighAttackThreshold(allValidStats);
 
   // Build id → English name map for resolving evolution targets
   const idToName = new Map<string, string>();
@@ -316,21 +371,29 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     );
 
     const rawItem = item as Record<string, unknown>;
-    const quickMoves = applyRecommended(mergeMoveEntries(
-      extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
-      extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
-    ));
     const pokemonTypeIds = secondaryTypeName
       ? [primaryTypeName, secondaryTypeName]
       : [primaryTypeName];
     const isFragile = (stats.stamina + stats.defense) <= fragileThreshold;
+    const isHighAttack = stats.attack > highAttackThreshold;
+    const quickMoves = applyQuickRecommended(
+      mergeMoveEntries(
+        extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
+        extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
+      ),
+      pokemonTypeIds,
+      primaryTypeName,
+      isHighAttack,
+    );
     const chargedMoves = applyChargedRecommended(
       mergeMoveEntries(
         extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
         extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
       ),
       pokemonTypeIds,
+      primaryTypeName,
       isFragile,
+      isHighAttack,
     );
 
     entries.push({
