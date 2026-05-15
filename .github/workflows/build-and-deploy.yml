@@ -26,6 +26,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Fetch Pokémon data
+        run: npm run fetch-pokemon
+
       - name: Run tests
         run: npm test
 
