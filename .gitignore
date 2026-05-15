@@ -13,4 +13,5 @@ out/
 # Logs
 npm-debug.log*
 
+tsconfig.tsbuildinfo
 public/data/*
