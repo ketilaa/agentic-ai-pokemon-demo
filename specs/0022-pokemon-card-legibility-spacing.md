@@ -141,33 +141,32 @@ the increased internal spacing scales proportionally.
 | ID | Criterion | Testable |
 |----|-----------|---------|
 | AC-01 | Every `data-testid="move-item"` element has `data-min-height="36"`. | automated |
-| AC-02 | No move item has `data-min-height` set to a value less than 36. | automated |
-| AC-03 | Elite move items (`data-is-elite="true"`) have `data-min-height="36"`, confirming they share the same sizing. | automated |
+| AC-02 | Elite move items (`data-is-elite="true"`) have `data-min-height="36"`, confirming they share the same sizing. | automated |
 
 ### Tier badges
 
 | ID | Criterion | Testable |
 |----|-----------|---------|
-| AC-04 | Every attacker `role-block` contains exactly one element with `data-testid="tier-badge"` and `data-badge-size="20"`. | automated |
-| AC-05 | The defender `role-block` contains exactly one element with `data-testid="tier-badge"` and `data-badge-size="20"`. | automated |
-| AC-06 | No `data-testid="tier-badge"` element has `data-badge-size` set to a value other than `"20"`. | automated |
+| AC-03 | Every attacker `role-block` contains exactly one element with `data-testid="tier-badge"` and `data-badge-size="20"`. | automated |
+| AC-04 | The defender `role-block` contains exactly one element with `data-testid="tier-badge"` and `data-badge-size="20"`. | automated |
+| AC-05 | No `data-testid="tier-badge"` element has `data-badge-size` set to a value other than `"20"`. | automated |
 
 ### Structure and rendering
 
 | ID | Criterion | Testable |
 |----|-----------|---------|
-| AC-07 | The card renders without error for all three cases: fallback (no attacker roles), single attacker role, dual attacker roles. | automated |
-| AC-08 | `pve-roles-section` is present in all three cases above. | automated |
-| AC-09 | All role blocks retain `data-role`, `data-role-type` (attacker only), and `data-tier` attributes unchanged. | automated |
-| AC-10 | Move items retain `data-move-name`, `data-move-type`, `data-is-elite`, and `data-is-recommended` attributes unchanged. | automated |
+| AC-06 | The card renders without error for all three cases: fallback (no attacker roles), single attacker role, dual attacker roles. | automated |
+| AC-07 | `pve-roles-section` is present in all three cases above. | automated |
+| AC-08 | All role blocks retain `data-role`, `data-role-type` (attacker only), and `data-tier` attributes unchanged. | automated |
+| AC-09 | Move items retain `data-move-name`, `data-move-type`, `data-is-elite`, and `data-is-recommended` attributes unchanged. | automated |
 
 ### No-regression
 
 | ID | Criterion | Testable |
 |----|-----------|---------|
-| AC-11 | Quick moves group (`data-testid="quick-moves-group"`) and charged moves group (`data-testid="charged-moves-group"`) remain present when moves exist. | automated |
-| AC-12 | Evolution chips (`evolves-from-section`, `evolves-to-section`) remain present when evolution data exists. | automated |
-| AC-13 | Stat bars (`data-testid="stat-bar-atk"`, `stat-bar-def"`, `"stat-bar-sta"`) retain their `data-stat-value` and `data-stat-pct` attributes. | automated |
+| AC-10 | Quick moves group (`data-testid="quick-moves-group"`) and charged moves group (`data-testid="charged-moves-group"`) remain present when moves exist. | automated |
+| AC-11 | Evolution chips (`evolves-from-section`, `evolves-to-section`) remain present when evolution data exists. | automated |
+| AC-12 | Stat bars (`data-testid="stat-bar-atk"`, `data-testid="stat-bar-def"`, `data-testid="stat-bar-sta"`) retain their `data-stat-value` and `data-stat-pct` attributes. | automated |
 
 ---
 
@@ -182,8 +181,12 @@ attributes (except adding new ones per §3.1–§3.2).
 ### New tests for spec 0022
 
 Add `describe('PokemonCard – legibility and spacing (spec 0022)')` in
-`tests/components/pokemon-card.test.tsx` covering AC-01 through AC-13 using the existing
+`tests/components/pokemon-card.test.tsx` covering AC-01 through AC-12 using the existing
 fixture pattern (`DUAL_ROLES`, `SINGLE_ROLE`, `TYRANITAR_QUICK`, `TYRANITAR_CHARGED`).
+
+If these constants are currently defined inside the spec 0020 `describe` block, hoist them
+to module scope (above all `describe` calls) so they are accessible to both the spec 0020
+and spec 0022 describe blocks. Do not duplicate the definitions.
 
 No live dataset tests are required. The data attributes are structural, not data-dependent.
 
