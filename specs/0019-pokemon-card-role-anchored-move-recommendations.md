@@ -51,7 +51,9 @@ Each group contains:
 2. The **recommended Quick move** for this role — the single Quick move with `isRecommended: true` whose `typeId` matches this role's `typeId`.
 3. The **recommended Charged move** for this role — the single Charged move with `isRecommended: true` whose `typeId` matches this role's `typeId`.
 
-Each move item inside a `role-moveset-group` retains all existing data attributes: `data-is-recommended="true"`, `data-is-elite`, `data-type-id`, and all visual emphasis (bold/high-contrast text, elite italic). No new data attributes are added to move items themselves.
+Each move item inside a `role-moveset-group` retains all existing data attributes: `data-is-recommended="true"`, `data-is-elite`, `data-move-type`, and all visual emphasis (bold/high-contrast text, elite italic). No new data attributes are added to move items themselves.
+
+If multiple recommended moves with the same `typeId` and move slot exist (invariant violation in the domain layer), the component renders the first one encountered in array order. This case is not tested; the domain layer is responsible for preventing it.
 
 ### 3.4 Data Attributes on Role Elements
 
@@ -77,6 +79,8 @@ The role-tier section from spec 0018 is retained unchanged. Visual association b
 ### 3.7 Type Name Constraint Superseded
 
 Spec 0004 established that type names must not appear as standalone text labels in the card. This constraint is **superseded in the narrow scope of `role-moveset-group` labels** — the `"[TypeId] attacker"` label constitutes a role orientation aid, not a type badge or type legend. All other spec 0004 type-color and type-badge constraints remain in force.
+
+Spec 0017 §4 contains a standing constraint: "No text such as 'Rock role', 'attacker', 'STAB role', or any role-communicating language appears anywhere in the move section." **This constraint is superseded in the narrow scope of `role-moveset-group` labels for multi-role Pokémon.** All other spec 0017 §4 constraints (no statistics displayed, no legends, no interaction, no text labels outside `role-moveset-group` headers) remain in force.
 
 ### 3.8 Domain Model
 
@@ -125,7 +129,7 @@ Elite italic (spec 0014) is orthogonal to role anchoring. A recommended elite mo
 |---|-----------|---------------|
 | AC-01 | A Pokémon with two viable attacker roles renders a `role-moveset-section` inside `move-section`. | Render Tyranitar (Rock/Dark dual-role); query `getByTestId('role-moveset-section')`; assert it is present. |
 | AC-02 | A Pokémon with one viable attacker role does not render a `role-moveset-section`. | Render Absol (single Dark role); query `queryByTestId('role-moveset-section')`; assert it is absent. |
-| AC-03 | A Pokémon with no viable attacker roles (fallback) does not render a `role-moveset-section`. | Render a test fixture with a Pokémon whose move pool has no type matching both a Quick and a Charged slot; assert `role-moveset-section` is absent. |
+| AC-03 | A Pokémon with no viable attacker roles (fallback) does not render a `role-moveset-section`. | Use a test fixture with `attackerRoles: []`; render the card; assert `queryByTestId('role-moveset-section')` is null. |
 
 ### Role-moveset section — group count and ordering
 
@@ -146,9 +150,9 @@ Elite italic (spec 0014) is orthogonal to role anchoring. A recommended elite mo
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-09 | Each `role-moveset-group` contains exactly one move item with `data-is-recommended="true"` and the Quick move category, and exactly one with `data-is-recommended="true"` and the Charged move category. | Render Tyranitar; within the Rock group, assert exactly one Quick-type move item and exactly one Charged-type move item each carry `data-is-recommended="true"`. Repeat for the Dark group. |
-| AC-10 | The Quick move in a `role-moveset-group` has a `data-type-id` matching the group's `data-role-type`. | Render Tyranitar; within the Rock group, assert the Quick move item's `data-type-id` equals `"Rock"`. Within the Dark group, assert `"Dark"`. |
-| AC-11 | The Charged move in a `role-moveset-group` has a `data-type-id` matching the group's `data-role-type`. | Render Tyranitar; within the Rock group, assert the Charged move item's `data-type-id` equals `"Rock"`. Within the Dark group, assert `"Dark"`. |
+| AC-09 | Each `role-moveset-group` contains exactly two move items with `data-is-recommended="true"`: the first (Quick) and the second (Charged). | Render Tyranitar; within the Rock group, query all move items carrying `data-is-recommended="true"`; assert count is 2; assert the first is the Quick move (rendered from `quickMoves`) and the second is the Charged move (rendered from `chargedMoves`). Repeat for the Dark group. |
+| AC-10 | The Quick move item in a `role-moveset-group` has a `data-move-type` matching the group's `data-role-type`. | Render Tyranitar; within the Rock group, assert the first `data-is-recommended="true"` move item's `data-move-type` equals `"Rock"`. Within the Dark group, assert `"Dark"`. |
+| AC-11 | The Charged move item in a `role-moveset-group` has a `data-move-type` matching the group's `data-role-type`. | Render Tyranitar; within the Rock group, assert the second `data-is-recommended="true"` move item's `data-move-type` equals `"Rock"`. Within the Dark group, assert `"Dark"`. |
 | AC-12 | An elite recommended move inside a `role-moveset-group` retains the elite italic indication. | Use a test fixture with an elite recommended move for a multi-role Pokémon; render the card; assert the move item inside the `role-moveset-group` carries both `data-is-elite="true"` and `data-is-recommended="true"`. |
 
 ### Standard groups for multi-role Pokémon
@@ -198,7 +202,9 @@ Elite italic (spec 0014) is orthogonal to role anchoring. A recommended elite mo
 
 - **AC-12 elite fixture.** The live dataset may not contain a multi-role Pokémon with an elite recommended move. If no live-data anchor is available, the developer must construct a synthetic test fixture to cover this case.
 
-- **Spec 0017 AC-13 constraint.** Spec 0017 AC-13 asserts that no text label communicating role, type, STAB, energy cost, power, or any derived value appears inside `move-section`. Spec 0019 explicitly introduces role labels inside `move-section` for multi-role Pokémon, which supersedes the spec 0017 AC-13 constraint. The developer must update or remove the spec 0017 AC-13 test (if present as an automated assertion) so it does not false-fail under spec 0019.
+- **Spec 0017 AC-13 constraint.** Spec 0017 AC-13 asserts that no text label communicating role, type, STAB, energy cost, power, or any derived value appears inside `move-section`. Spec 0019 §3.7 explicitly supersedes this constraint for role-moveset-group labels. Spec 0017 AC-13 was not implemented as a standalone automated test in the current test suite; the developer does not need to remove or modify any existing test for this reason. The developer must not introduce a new test asserting the absence of role labels in `move-section` for multi-role Pokémon.
+
+- **Spec 0004 regression test scope.** The spec 0004 regression tests assert that no type name appears as standalone text in the card (e.g. `queryByText('Rock')` is null). Those tests use fixtures without a `role-moveset-section` and will not false-fail under spec 0019. The developer must not extend those tests to multi-role Pokémon fixtures without accounting for the `"[TypeId] attacker"` labels introduced in §3.3.
 
 ---
 
