@@ -3,7 +3,7 @@ import Card from '@mui/material/Card';
 import Chip from '@mui/material/Chip';
 import Typography from '@mui/material/Typography';
 import { alpha } from '@mui/material/styles';
-import type { MoveEntry, PokemonStats, PokemonType, StatMaxima } from '@/domain/pokemon-catalog';
+import type { AttackerRoleTier, MoveEntry, PokemonStats, PokemonType, StatMaxima, TierLabel } from '@/domain/pokemon-catalog';
 import { TYPE_COLORS } from '@/domain/pokemon-catalog';
 
 interface Props {
@@ -17,6 +17,8 @@ interface Props {
   imageUrl?: string | null;
   quickMoves?: readonly MoveEntry[];
   chargedMoves?: readonly MoveEntry[];
+  attackerRoles?: readonly AttackerRoleTier[];
+  defenderTier?: TierLabel;
   onSelect: (name: string) => void;
 }
 
@@ -117,6 +119,69 @@ function MoveGroup({
   );
 }
 
+function RoleTierSection({
+  attackerRoles,
+  defenderTier,
+}: {
+  attackerRoles: readonly AttackerRoleTier[];
+  defenderTier: TierLabel;
+}) {
+  return (
+    <Box
+      data-testid="role-tier-section"
+      sx={{ mt: 1, mb: 0.25, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}
+    >
+      {attackerRoles.map((role) => {
+        const color = TYPE_COLORS[role.typeId] ?? '#888888';
+        return (
+          <Box
+            key={role.typeId}
+            component="span"
+            data-role="attacker"
+            data-type-id={role.typeId}
+            data-tier={role.tier}
+            sx={{
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 20,
+              height: 20,
+              borderRadius: '3px',
+              bgcolor: alpha(color, 0.8),
+              fontSize: '0.6rem',
+              fontWeight: 700,
+              color: '#fff',
+              lineHeight: 1,
+            }}
+          >
+            {role.tier}
+          </Box>
+        );
+      })}
+      <Box
+        component="span"
+        data-role="defender"
+        data-tier={defenderTier}
+        sx={{
+          display: 'inline-flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          width: 20,
+          height: 20,
+          borderRadius: '3px',
+          bgcolor: 'rgba(90,90,90,0.45)',
+          fontSize: '0.6rem',
+          fontWeight: 700,
+          color: '#fff',
+          lineHeight: 1,
+        }}
+      >
+        {defenderTier}
+      </Box>
+    </Box>
+  );
+}
+
 function MoveSection({
   quickMoves,
   chargedMoves,
@@ -143,7 +208,7 @@ function MoveSection({
   );
 }
 
-export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, quickMoves = [], chargedMoves = [], onSelect }: Props) {
+export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxima, evolvesFrom, evolvesTo, imageUrl = null, quickMoves = [], chargedMoves = [], attackerRoles = [], defenderTier = 'C', onSelect }: Props) {
   return (
     <Card
       data-testid="pokemon-card"
@@ -208,6 +273,7 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       </Box>
       <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
+        <RoleTierSection attackerRoles={attackerRoles} defenderTier={defenderTier} />
         <MoveSection quickMoves={quickMoves} chargedMoves={chargedMoves} />
         {(evolvesFrom !== null || evolvesTo.length > 0) && (
           <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>

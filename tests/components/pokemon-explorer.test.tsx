@@ -30,9 +30,9 @@ const STATS = { attack: 118, defense: 111, stamina: 128 };
 const MAXIMA: StatMaxima = { maxAttack: 200, maxDefense: 200, maxStamina: 200 };
 
 const ENTRIES: PokemonEntry[] = [
-  { name: 'Bulbasaur', primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS, evolvesFrom: null, evolvesTo: ['Ivysaur'] },
-  { name: 'Ivysaur',   primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS, evolvesFrom: 'Bulbasaur', evolvesTo: ['Venusaur'] },
-  { name: 'Venusaur',  primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS, evolvesFrom: 'Ivysaur', evolvesTo: [] },
+  { name: 'Bulbasaur', primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS, evolvesFrom: null, evolvesTo: ['Ivysaur'], imageUrl: null, quickMoves: [], chargedMoves: [], attackerRoles: [], defenderTier: 'C' },
+  { name: 'Ivysaur',   primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS, evolvesFrom: 'Bulbasaur', evolvesTo: ['Venusaur'], imageUrl: null, quickMoves: [], chargedMoves: [], attackerRoles: [], defenderTier: 'C' },
+  { name: 'Venusaur',  primaryType: { name: 'Grass', color: '#3FA129' }, secondaryType: { name: 'Poison', color: '#9141CB' }, stats: STATS, evolvesFrom: 'Ivysaur', evolvesTo: [], imageUrl: null, quickMoves: [], chargedMoves: [], attackerRoles: [], defenderTier: 'C' },
 ];
 
 describe('PokemonExplorer', () => {

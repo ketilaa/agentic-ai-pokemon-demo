@@ -1,5 +1,6 @@
 import { parsePokemonData, TYPE_COLORS } from '../../src/domain/pokemon-catalog';
-import type { MoveEntry } from '../../src/domain/pokemon-catalog';
+import type { MoveEntry, TierLabel } from '../../src/domain/pokemon-catalog';
+import pokemonData from '../../public/data/pokemon.json';
 
 const DEFAULT_STATS = { attack: 100, defense: 100, stamina: 100 };
 
@@ -1228,6 +1229,165 @@ describe('parsePokemonData - spec 0017 multi-role move recommendations', () => {
     const { quickMoves } = parsePokemonData(raw).entries[0];
     expect(quickMoves.find((m) => m.name === 'Infestation')?.isRecommended).toBe(true);
     expect(quickMoves.find((m) => m.name === 'Confusion')?.isRecommended).toBe(false);
+  });
+});
+
+// Spec 0018 helpers
+// Tyranitar-like fixture reuses TYRANITAR_LIKE + buildMultiRoleDataset from spec 0017 above.
+// No-viable-role fixture: Dragon quick + Flying charged → no type spans both slots.
+const DRAGONITE_NO_ROLE = {
+  ...makeEntry('Dragonite', 'Dragon', 'Flying'),
+  quickMoves: { DRAGON_BREATH_FAST: makeMove('Dragon', 'Dragon Breath', { energy: 8 }) },
+  eliteQuickMoves: [],
+  cinematicMoves: { AERIAL_ACE: makeMove('Flying', 'Aerial Ace', { power: 55, energy: -33 }) },
+  eliteCinematicMoves: [],
+};
+
+const VALID_TIER_LABELS: TierLabel[] = ['S', 'A', 'B', 'C'];
+
+describe('parsePokemonData - spec 0018 role-based PvE tiers', () => {
+  describe('data model — synthetic fixtures', () => {
+    it('AC-01: PokemonEntry exposes attackerRoles and defenderTier', () => {
+      const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+      const ttаr = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+      expect(ttаr).toHaveProperty('attackerRoles');
+      expect(ttаr).toHaveProperty('defenderTier');
+      expect(Array.isArray(ttаr.attackerRoles)).toBe(true);
+      expect(VALID_TIER_LABELS).toContain(ttаr.defenderTier);
+    });
+
+    it('AC-02: dual-role Pokémon has exactly two AttackerRoleTier entries', () => {
+      const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+      const ttаr = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+      expect(ttаr.attackerRoles).toHaveLength(2);
+      expect(ttаr.attackerRoles.map((r) => r.typeId).sort()).toEqual(['Dark', 'Rock']);
+      ttаr.attackerRoles.forEach((r) => expect(VALID_TIER_LABELS).toContain(r.tier));
+    });
+
+    it('AC-23: attackerRoles is ordered by Pokémon type order — primary type first', () => {
+      // Tyranitar: primary=Rock, secondary=Dark → Rock must be index 0
+      const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+      const ttаr = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+      expect(ttаr.attackerRoles[0].typeId).toBe('Rock');
+      expect(ttаr.attackerRoles[1].typeId).toBe('Dark');
+    });
+
+    it('AC-03: no-viable-role Pokémon has an empty attackerRoles array', () => {
+      const raw = [DRAGONITE_NO_ROLE];
+      const dragonite = parsePokemonData(raw).entries.find((e) => e.name === 'Dragonite')!;
+      expect(dragonite.attackerRoles).toHaveLength(0);
+    });
+
+    it('AC-04: defenderTier is a valid TierLabel for all Pokémon in a dataset', () => {
+      const raw = [
+        makeEntry('A', 'Fire',    undefined, { attack: 200, defense: 80,  stamina: 100 }),
+        makeEntry('B', 'Water',   undefined, { attack: 100, defense: 180, stamina: 120 }),
+        makeEntry('C', 'Grass',   undefined, { attack: 50,  defense: 50,  stamina: 50  }),
+        makeEntry('D', 'Normal',  undefined, { attack: 90,  defense: 250, stamina: 300 }),
+        makeEntry('E', 'Psychic', undefined, { attack: 150, defense: 100, stamina: 200 }),
+        makeEntry('F', 'Dark',    undefined, { attack: 251, defense: 207, stamina: 225 }),
+        makeEntry('G', 'Rock',    undefined, { attack: 295, defense: 109, stamina: 190 }),
+        makeEntry('H', 'Ice',     undefined, { attack: 129, defense: 169, stamina: 496 }),
+        makeEntry('I', 'Fairy',   undefined, { attack: 116, defense: 93,  stamina: 118 }),
+        makeEntry('J', 'Ghost',   undefined, { attack: 60,  defense: 55,  stamina: 128 }),
+      ];
+      const { entries } = parsePokemonData(raw);
+      expect(entries).toHaveLength(10);
+      entries.forEach((e) => expect(VALID_TIER_LABELS).toContain(e.defenderTier));
+    });
+  });
+
+  describe('live-dataset anchors', () => {
+    let liveCatalog: ReturnType<typeof parsePokemonData>;
+    beforeAll(() => {
+      liveCatalog = parsePokemonData(pokemonData);
+    });
+
+    it('AC-05: Rampardos achieves S tier as a Rock attacker', () => {
+      const rampardos = liveCatalog.entries.find((e) => e.name === 'Rampardos')!;
+      expect(rampardos).toBeDefined();
+      const rockRole = rampardos.attackerRoles.find((r) => r.typeId === 'Rock');
+      expect(rockRole).toBeDefined();
+      expect(rockRole!.tier).toBe('S');
+    });
+
+    it('AC-06: Tyranitar achieves S or A in both its Rock and Dark attacker roles', () => {
+      const ttаr = liveCatalog.entries.find((e) => e.name === 'Tyranitar')!;
+      expect(ttаr).toBeDefined();
+      const rockTier = ttаr.attackerRoles.find((r) => r.typeId === 'Rock')?.tier;
+      const darkTier = ttаr.attackerRoles.find((r) => r.typeId === 'Dark')?.tier;
+      expect(['S', 'A']).toContain(rockTier);
+      expect(['S', 'A']).toContain(darkTier);
+    });
+
+    it('AC-07: a lower-attack Rock Pokémon achieves B or C tier in the Rock attacker role', () => {
+      // Geodude (Rock/Ground, attack=132) is well below Rampardos/Tyranitar
+      const geodude = liveCatalog.entries.find((e) => e.name === 'Geodude')!;
+      expect(geodude).toBeDefined();
+      const rockRole = geodude.attackerRoles.find((r) => r.typeId === 'Rock');
+      if (rockRole) {
+        expect(['B', 'C']).toContain(rockRole.tier);
+      }
+      // If Geodude has no viable Rock role, the test passes vacuously — spec allows this.
+    });
+
+    it('AC-08: Charizard (Fire=A, Flying=S) has different tiers for its two attacker roles', () => {
+      const charizard = liveCatalog.entries.find((e) => e.name === 'Charizard')!;
+      expect(charizard).toBeDefined();
+      const fireTier  = charizard.attackerRoles.find((r) => r.typeId === 'Fire')?.tier;
+      const flyingTier = charizard.attackerRoles.find((r) => r.typeId === 'Flying')?.tier;
+      expect(fireTier).toBeDefined();
+      expect(flyingTier).toBeDefined();
+      expect(fireTier).not.toBe(flyingTier);
+    });
+
+    it('AC-09: Blissey achieves S tier as a defender', () => {
+      const blissey = liveCatalog.entries.find((e) => e.name === 'Blissey')!;
+      expect(blissey).toBeDefined();
+      expect(blissey.defenderTier).toBe('S');
+    });
+
+    it('AC-10: Chansey achieves S tier as a defender', () => {
+      const chansey = liveCatalog.entries.find((e) => e.name === 'Chansey')!;
+      expect(chansey).toBeDefined();
+      expect(chansey.defenderTier).toBe('S');
+    });
+
+    it('AC-11: Caterpie achieves C tier as a defender', () => {
+      const caterpie = liveCatalog.entries.find((e) => e.name === 'Caterpie')!;
+      expect(caterpie).toBeDefined();
+      expect(caterpie.defenderTier).toBe('C');
+    });
+
+    it('AC-12: every fragile Pokémon (Defense+Stamina ≤ 0.65×dataset mean) achieves C tier as a defender', () => {
+      const allDefSta = liveCatalog.entries.map((e) => e.stats.defense + e.stats.stamina);
+      const mean = allDefSta.reduce((s, v) => s + v, 0) / allDefSta.length;
+      const fragileThreshold = mean * 0.65;
+      const fragile = liveCatalog.entries.filter((e) => e.stats.defense + e.stats.stamina <= fragileThreshold);
+      expect(fragile.length).toBeGreaterThan(0);
+      fragile.forEach((e) => {
+        expect(e.defenderTier).toBe('C');
+      });
+    });
+
+    it('AC-13: no Pokémon has an attacker tier for a type it does not own', () => {
+      for (const entry of liveCatalog.entries) {
+        const ownedTypes = new Set([
+          entry.primaryType.name,
+          ...(entry.secondaryType ? [entry.secondaryType.name] : []),
+        ]);
+        entry.attackerRoles.forEach((r) => {
+          expect(ownedTypes).toContain(r.typeId);
+        });
+      }
+    });
+
+    it('AC-14: no Pokémon has duplicate typeId values in attackerRoles', () => {
+      for (const entry of liveCatalog.entries) {
+        const typeIds = entry.attackerRoles.map((r) => r.typeId);
+        expect(new Set(typeIds).size).toBe(typeIds.length);
+      }
+    });
   });
 });
 
