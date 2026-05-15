@@ -1,6 +1,6 @@
 # Spec 0018 – Pokémon Card Role-Based PvE Tiers
 
-**Status:** Draft  
+**Status:** Ready for implementation  
 **Iteration:** 18  
 **Author:** Architect agent  
 **Date:** 2026-05-15
@@ -59,7 +59,7 @@ For each viable attacker role for type T in the dataset, all Pokémon sharing th
 
 **Primary factor — base Attack**: Base Attack is the dominant determinant of raid DPS in Pokémon GO. Within the type-T attacker pool, a Pokémon with higher base Attack delivers more damage per second and is a stronger attacker. Base Attack is the primary sort key for tier assignment.
 
-**Secondary factor — survivability adjustment**: A Pokémon that meets the fragility criterion from spec 0015 (low Defense + Stamina relative to the dataset mean) has reduced sustained raid effectiveness because it faints before firing as many charged moves as a more durable attacker with similar Attack. A fragile Pokémon should be treated as slightly weaker in attacker tier than its raw Attack value alone implies. The developer must document whether and how a survivability penalty is applied.
+**Secondary factor — survivability adjustment (optional)**: A Pokémon that meets the fragility criterion from spec 0015 (low Defense + Stamina relative to the dataset mean) has reduced sustained raid effectiveness because it faints before firing as many charged moves as a more durable attacker with similar Attack. The developer may apply a survivability penalty to reduce a fragile Pokémon's effective standing in the type-T attacker pool. Applying the penalty is at the developer's discretion. The developer must document whether a survivability penalty is applied and, if so, how it is computed.
 
 **Tier boundary approach**: Tier boundaries are relative to each type-T attacker pool. The developer must choose thresholds and document them. Thresholds must produce results consistent with community expectations for prominent Pokémon — for example:
 - Rampardos (Rock, Attack=295) should achieve S tier as a Rock attacker.
@@ -68,7 +68,7 @@ For each viable attacker role for type T in the dataset, all Pokémon sharing th
 
 Thresholds must be deterministic and identical across all builds from the same dataset.
 
-**Small-pool handling**: A type's attacker pool may contain very few Pokémon (fewer than four). When the pool is too small to distribute Pokémon meaningfully across all four tier labels, the developer must apply fewer tiers (e.g. only S and A, or only S, A, and B) for that type. The handling must be documented and consistent.
+**Small-pool handling**: A type's attacker pool may contain very few Pokémon. When the pool is too small to distribute Pokémon meaningfully across all four tier labels, the developer must apply the following rule uniformly: a pool of 1 member receives only S; a pool of 2 members receives only S and A; a pool of 3 members receives only S, A, and B; a pool of 4 or more members receives all four tiers. The handling must be documented and applied consistently across all types.
 
 ### 3.4 Defender Role Tier Determination
 
@@ -82,7 +82,7 @@ All Pokémon with valid base stats receive a defender tier. The full dataset is 
 - Snorlax (Defense=169, Stamina=330, sum=499) should achieve S or A tier.
 - Caterpie (Defense=55, Stamina=128, sum=183) and Rattata (Defense=70, Stamina=102, sum=172) should achieve C tier.
 
-The developer must verify that the fragility boundary from spec 0015 — which defines Pokémon with low Defense + Stamina as unsuitable for sustained PvE — is consistent with C-tier classification. A Pokémon that is "fragile" per spec 0015 should not appear in B tier or above as a defender.
+The developer must verify that the fragility boundary from spec 0015 — which defines Pokémon with low Defense + Stamina as unsuitable for sustained PvE — is consistent with C-tier classification. A Pokémon that is "fragile" per spec 0015 must not appear in B tier or above as a defender; its defender tier must be C.
 
 Thresholds must be deterministic and identical across all builds from the same dataset.
 
@@ -173,6 +173,7 @@ All behavior from Iterations 13–17 is preserved without change. The role-tier 
 | AC-02 | `attackerRoles` contains one entry per viable attacker role (matching spec 0017 §3.1 viability conditions), each with a `typeId` matching one of the Pokémon's own types and a `tier` of `'S' | 'A' | 'B' | 'C'`. | Parse Tyranitar (Rock/Dark dual-role); confirm `attackerRoles` has exactly two entries, one with `typeId='Rock'` and one with `typeId='Dark'`. |
 | AC-03 | A Pokémon with no viable attacker roles (spec 0017 fallback path) has an empty `attackerRoles` array. | Introduce a test fixture representing a Pokémon with no type-matching STAB moves in both slots simultaneously; confirm `attackerRoles.length === 0`. |
 | AC-04 | `defenderTier` is always a member of `'S' | 'A' | 'B' | 'C'`. | Check `defenderTier` for a representative sample of at least ten Pokémon; confirm all values are valid tier labels. |
+| AC-23 | `attackerRoles` is ordered by the Pokémon's type order: primary type first, secondary type second. | Parse Tyranitar (primary=Rock, secondary=Dark); confirm `attackerRoles[0].typeId === 'Rock'` and `attackerRoles[1].typeId === 'Dark'`. |
 
 ### Attacker tier — relative ranking
 
@@ -190,7 +191,7 @@ All behavior from Iterations 13–17 is preserved without change. The role-tier 
 | AC-09 | Blissey (Defense=169, Stamina=496, sum=665) achieves S tier as a defender. | Parse the full live dataset; find Blissey; confirm `defenderTier === 'S'`. |
 | AC-10 | Chansey (Defense=128, Stamina=487, sum=615) achieves S tier as a defender. | Parse the full live dataset; confirm `defenderTier === 'S'` for Chansey. |
 | AC-11 | Caterpie (Defense=55, Stamina=128, sum=183) achieves C tier as a defender. | Parse the full live dataset; confirm `defenderTier === 'C'` for Caterpie. |
-| AC-12 | Every Pokémon classified as fragile by spec 0015 (Defense + Stamina at or below the fragility threshold) achieves at most B tier — never A or S — as a defender. | For all Pokémon whose Defense + Stamina falls at or below the spec 0015 fragility threshold (0.65 × dataset mean), confirm `defenderTier` is `'B'` or `'C'`. |
+| AC-12 | Every Pokémon classified as fragile by spec 0015 (Defense + Stamina at or below the fragility threshold) achieves C tier — never B, A, or S — as a defender. | For all Pokémon whose Defense + Stamina falls at or below the spec 0015 fragility threshold (0.65 × dataset mean), confirm `defenderTier === 'C'`. |
 
 ### No artificial extra roles
 
@@ -228,9 +229,9 @@ All behavior from Iterations 13–17 is preserved without change. The role-tier 
 
 - **Tier boundary calibration.** The developer must choose numeric thresholds for both attacker and defender tiers that produce results consistent with community expectations for prominent Pokémon. If the chosen thresholds produce counterintuitive results for well-known cases (e.g. Rampardos not S-tier as a Rock attacker, or Blissey not S-tier as a defender), the developer must raise a spec revision before shipping.
 
-- **Small attacker pool types.** Some type-T attacker pools contain fewer than four Pokémon. Distributing four tier labels across three Pokémon is not meaningful. The developer must define and document a consistent rule for small pools (e.g. "pools with fewer than 4 members receive at most N distinct tiers") and apply it uniformly.
+- **Small attacker pool types.** Some type-T attacker pools contain fewer than four Pokémon. Distributing four tier labels across three Pokémon is not meaningful. §3.3 prescribes the rule: 1 member → S only; 2 members → S and A; 3 members → S, A, and B; 4+ members → all four tiers. The developer must implement and document this rule exactly.
 
-- **Defender tier / fragility threshold consistency.** Spec 0015 defines fragile Pokémon as those with Defense + Stamina at or below 65% of the dataset mean. AC-12 requires that fragile Pokémon achieve at most B tier as defenders. The developer must verify this constraint holds across the live dataset before shipping. If the chosen defender tier thresholds would place any fragile Pokémon in A or S tier, the thresholds must be adjusted.
+- **Defender tier / fragility threshold consistency.** Spec 0015 defines fragile Pokémon as those with Defense + Stamina at or below 65% of the dataset mean. AC-12 requires that fragile Pokémon achieve C tier — never B, A, or S — as defenders. The developer must verify this constraint holds across the live dataset before shipping. If the chosen defender tier thresholds would place any fragile Pokémon in B tier or above, the thresholds must be adjusted.
 
 - **Attacker tier for Pokémon already in spec 0017 tests.** Several test fixtures in the existing test suite set exact Attack stat values (e.g. attack=251 for Tyranitar-like fixtures). These fixtures will receive computed attacker tiers based on dataset-relative thresholds. If a fixture's attack value places it in an unexpected tier given the fixture dataset, existing tests may need to assert specific tier values. The developer must audit all multi-role test fixtures for AC compliance.
 
