@@ -5,7 +5,8 @@ import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { PokemonCard } from '../../src/components/pokemon-card';
 import type { AttackerRoleTier, MoveEntry, PokemonStats, PokemonType, StatMaxima, TierLabel } from '../../src/domain/pokemon-catalog';
-import { TYPE_COLORS } from '../../src/domain/pokemon-catalog';
+import { parsePokemonData, TYPE_COLORS } from '../../src/domain/pokemon-catalog';
+import pokemonData from '../../public/data/pokemon.json';
 
 // spec 0005: AC-02–AC-10
 // spec 0006: AC-04–AC-08
@@ -979,93 +980,6 @@ describe('PokemonCard – move recommendation and elite clarification (spec 0014
   });
 });
 
-describe('PokemonCard – role-tier section (spec 0018)', () => {
-  const ROCK: PokemonType = { name: 'Rock', color: '#AFA981' };
-  const DARK: PokemonType = { name: 'Dark', color: '#624D4E' };
-
-  const DUAL_ROLES: AttackerRoleTier[] = [
-    { typeId: 'Rock', tier: 'S' },
-    { typeId: 'Dark', tier: 'A' },
-  ];
-  const DEF_TIER: TierLabel = 'B';
-
-  it('AC-15: dual-role Pokémon renders two [data-role="attacker"] and one [data-role="defender"]', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
-    );
-    const attackerItems = document.querySelectorAll('[data-role="attacker"]');
-    const defenderItems = document.querySelectorAll('[data-role="defender"]');
-    expect(attackerItems).toHaveLength(2);
-    expect(defenderItems).toHaveLength(1);
-  });
-
-  it('AC-16: attacker elements carry correct data-type-id and data-tier; defender carries correct data-tier', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
-    );
-    const rockItem = document.querySelector('[data-role="attacker"][data-type-id="Rock"]');
-    const darkItem = document.querySelector('[data-role="attacker"][data-type-id="Dark"]');
-    const defItem  = document.querySelector('[data-role="defender"]');
-    expect(rockItem?.getAttribute('data-tier')).toBe('S');
-    expect(darkItem?.getAttribute('data-tier')).toBe('A');
-    expect(defItem?.getAttribute('data-tier')).toBe('B');
-  });
-
-  it('AC-17: Pokémon with no attacker roles renders no [data-role="attacker"] elements', () => {
-    render(
-      <PokemonCard name="Dragonite" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} attackerRoles={[]} defenderTier="C" onSelect={jest.fn()} />
-    );
-    expect(document.querySelectorAll('[data-role="attacker"]')).toHaveLength(0);
-    expect(document.querySelectorAll('[data-role="defender"]')).toHaveLength(1);
-  });
-
-  it('AC-19: role-tier section contains no explanatory text labels', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
-    );
-    const section = screen.getByTestId('role-tier-section');
-    const text = section.textContent ?? '';
-    expect(text).not.toMatch(/attacker|defender|tier|best|role/i);
-  });
-
-  it('AC-20: role-tier section contains no numeric stat values', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
-    );
-    const section = screen.getByTestId('role-tier-section');
-    expect(section.textContent ?? '').not.toMatch(/\b\d+\b/);
-  });
-
-  it('role-tier-section is inside card-content-section', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
-    );
-    const content = screen.getByTestId('card-content-section');
-    expect(within(content).getByTestId('role-tier-section')).toBeInTheDocument();
-  });
-
-  it('role-tier-section appears after stat-bar-sta and before move-section in document order', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={[{ name: 'Bite', typeId: 'Dark', isElite: false, isRecommended: true }]}
-        chargedMoves={[{ name: 'Crunch', typeId: 'Dark', isElite: false, isRecommended: true }]}
-        attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
-    );
-    const content = screen.getByTestId('card-content-section');
-    const nodes = Array.from(content.querySelectorAll('[data-testid]'));
-    const staIdx   = nodes.findIndex((n) => n.getAttribute('data-testid') === 'stat-bar-sta');
-    const tierIdx  = nodes.findIndex((n) => n.getAttribute('data-testid') === 'role-tier-section');
-    const moveIdx  = nodes.findIndex((n) => n.getAttribute('data-testid') === 'move-section');
-    expect(tierIdx).toBeGreaterThan(staIdx);
-    expect(moveIdx).toBeGreaterThan(tierIdx);
-  });
-});
 
 describe('PokemonCard – spec 0004 constraints preserved', () => {
   it('no type name appears on the card', () => {
@@ -1089,7 +1003,7 @@ describe('PokemonCard – spec 0004 constraints preserved', () => {
   });
 });
 
-describe('PokemonCard – role-anchored move recommendations (spec 0019)', () => {
+describe('PokemonCard – role-anchored tier presentation (spec 0020)', () => {
   const ROCK: PokemonType = { name: 'Rock', color: '#AFA981' };
   const DARK: PokemonType = { name: 'Dark', color: '#624D4E' };
 
@@ -1098,10 +1012,9 @@ describe('PokemonCard – role-anchored move recommendations (spec 0019)', () =>
     { typeId: 'Dark', tier: 'A' },
   ];
 
-  // Tyranitar-like: two recommended per slot plus one non-recommended each
   const TYRANITAR_QUICK: MoveEntry[] = [
-    { name: 'Smack Down', typeId: 'Rock', isElite: false, isRecommended: true },
-    { name: 'Bite',       typeId: 'Dark', isElite: false, isRecommended: true },
+    { name: 'Smack Down', typeId: 'Rock',  isElite: false, isRecommended: true },
+    { name: 'Bite',       typeId: 'Dark',  isElite: false, isRecommended: true },
     { name: 'Iron Tail',  typeId: 'Steel', isElite: false, isRecommended: false },
   ];
   const TYRANITAR_CHARGED: MoveEntry[] = [
@@ -1110,7 +1023,6 @@ describe('PokemonCard – role-anchored move recommendations (spec 0019)', () =>
     { name: 'Fire Blast', typeId: 'Fire', isElite: false, isRecommended: false },
   ];
 
-  // All moves recommended — standard groups must be absent
   const FIRE_FLYING_ROLES: AttackerRoleTier[] = [
     { typeId: 'Fire',   tier: 'A' },
     { typeId: 'Flying', tier: 'S' },
@@ -1124,7 +1036,6 @@ describe('PokemonCard – role-anchored move recommendations (spec 0019)', () =>
     { name: 'Hurricane', typeId: 'Flying', isElite: false, isRecommended: true },
   ];
 
-  // Smack Down is elite — verifies elite rendering is preserved inside role groups
   const ELITE_QUICK: MoveEntry[] = [
     { name: 'Smack Down', typeId: 'Rock', isElite: true,  isRecommended: true },
     { name: 'Bite',       typeId: 'Dark', isElite: false, isRecommended: true },
@@ -1134,7 +1045,6 @@ describe('PokemonCard – role-anchored move recommendations (spec 0019)', () =>
     { name: 'Crunch',     typeId: 'Dark', isElite: false, isRecommended: true },
   ];
 
-  // Single-role fixture
   const SINGLE_ROLE: AttackerRoleTier[] = [{ typeId: 'Dark', tier: 'A' }];
   const SINGLE_QUICK: MoveEntry[] = [
     { name: 'Bite',      typeId: 'Dark', isElite: false, isRecommended: true },
@@ -1145,211 +1055,380 @@ describe('PokemonCard – role-anchored move recommendations (spec 0019)', () =>
     { name: 'Thunder',     typeId: 'Electric', isElite: false, isRecommended: false },
   ];
 
-  // Fallback fixture (attackerRoles: [])
   const FALLBACK_QUICK: MoveEntry[]   = [{ name: 'Tackle',     typeId: 'Normal', isElite: false, isRecommended: true }];
   const FALLBACK_CHARGED: MoveEntry[] = [{ name: 'Hyper Beam', typeId: 'Normal', isElite: false, isRecommended: true }];
 
-  it('AC-01: dual-role Pokémon renders role-moveset-section inside move-section', () => {
+  // AC-01: pve-roles-section present for Pokémon with and without attacker roles
+  it('AC-01: pve-roles-section renders inside card-content-section for a multi-role Pokémon', () => {
     render(
       <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
         attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
     );
-    expect(within(screen.getByTestId('move-section')).getByTestId('role-moveset-section')).toBeInTheDocument();
+    expect(within(screen.getByTestId('card-content-section')).getByTestId('pve-roles-section')).toBeInTheDocument();
   });
 
-  it('AC-02: single-role Pokémon does not render role-moveset-section', () => {
-    render(
-      <PokemonCard name="Absol" primaryType={DARK} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={SINGLE_QUICK} chargedMoves={SINGLE_CHARGED}
-        attackerRoles={SINGLE_ROLE} defenderTier="C" onSelect={jest.fn()} />
-    );
-    expect(screen.queryByTestId('role-moveset-section')).not.toBeInTheDocument();
-  });
-
-  it('AC-03: fallback Pokémon (attackerRoles: []) does not render role-moveset-section', () => {
+  it('AC-01: pve-roles-section renders inside card-content-section for a fallback Pokémon', () => {
     render(
       <PokemonCard name="Fallback" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={FALLBACK_QUICK} chargedMoves={FALLBACK_CHARGED}
         attackerRoles={[]} defenderTier="C" onSelect={jest.fn()} />
     );
-    expect(screen.queryByTestId('role-moveset-section')).not.toBeInTheDocument();
+    expect(within(screen.getByTestId('card-content-section')).getByTestId('pve-roles-section')).toBeInTheDocument();
   });
 
-  it('AC-04: role-moveset-section contains exactly one role-moveset-group per attacker role', () => {
+  // AC-02: pve-roles-section not inside card-header
+  it('AC-02: pve-roles-section does not render inside card-header', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    expect(within(screen.getByTestId('card-header')).queryByTestId('pve-roles-section')).not.toBeInTheDocument();
+  });
+
+  // AC-03: pve-roles-section after stat-bar-sta and before move-section in document order
+  it('AC-03: pve-roles-section appears after stat-bar-sta and before move-section in document order', () => {
     render(
       <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
         attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
     );
-    expect(within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group')).toHaveLength(2);
+    const content = screen.getByTestId('card-content-section');
+    const nodes = Array.from(content.querySelectorAll('[data-testid]'));
+    const staIdx   = nodes.findIndex((n) => n.getAttribute('data-testid') === 'stat-bar-sta');
+    const rolesIdx = nodes.findIndex((n) => n.getAttribute('data-testid') === 'pve-roles-section');
+    const moveIdx  = nodes.findIndex((n) => n.getAttribute('data-testid') === 'move-section');
+    expect(rolesIdx).toBeGreaterThan(staIdx);
+    expect(moveIdx).toBeGreaterThan(rolesIdx);
   });
 
-  it('AC-05: role-moveset-group elements appear in primary-type-first order (Rock then Dark)', () => {
+  // AC-04: dual-role Pokémon renders exactly 3 role-block elements
+  it('AC-04: dual-role Pokémon renders exactly three role-block elements: two attacker and one defender', () => {
     render(
       <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
-        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
     );
-    const groups = within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group');
-    expect(groups[0].getAttribute('data-role-type')).toBe('Rock');
-    expect(groups[1].getAttribute('data-role-type')).toBe('Dark');
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    expect(blocks).toHaveLength(3);
+    expect(blocks[0]).toHaveAttribute('data-role', 'attacker');
+    expect(blocks[1]).toHaveAttribute('data-role', 'attacker');
+    expect(blocks[2]).toHaveAttribute('data-role', 'defender');
   });
 
-  it('AC-06: each role-moveset-group contains a "[TypeId] attacker" label', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
-        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
-    );
-    const groups = within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group');
-    expect(within(groups[0]).getByText('Rock attacker')).toBeInTheDocument();
-    expect(within(groups[1]).getByText('Dark attacker')).toBeInTheDocument();
-  });
-
-  it('AC-07: no role label appears in move-section for a single-role Pokémon', () => {
+  // AC-05: single-role Pokémon renders exactly 2 role-block elements
+  it('AC-05: single-role Pokémon renders exactly two role-block elements: one attacker and one defender', () => {
     render(
       <PokemonCard name="Absol" primaryType={DARK} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={SINGLE_QUICK} chargedMoves={SINGLE_CHARGED}
         attackerRoles={SINGLE_ROLE} defenderTier="C" onSelect={jest.fn()} />
     );
-    expect(within(screen.getByTestId('move-section')).queryByText(/attacker/)).toBeNull();
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    expect(blocks).toHaveLength(2);
+    expect(blocks[0]).toHaveAttribute('data-role', 'attacker');
+    expect(blocks[1]).toHaveAttribute('data-role', 'defender');
   });
 
-  it('AC-08: no role label appears in move-section for a fallback Pokémon', () => {
+  // AC-06: fallback Pokémon renders exactly 1 role-block with data-role="defender"
+  it('AC-06: fallback Pokémon renders exactly one role-block element with data-role="defender"', () => {
     render(
       <PokemonCard name="Fallback" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={FALLBACK_QUICK} chargedMoves={FALLBACK_CHARGED}
         attackerRoles={[]} defenderTier="C" onSelect={jest.fn()} />
     );
-    expect(within(screen.getByTestId('move-section')).queryByText(/attacker/)).toBeNull();
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    expect(blocks).toHaveLength(1);
+    expect(blocks[0]).toHaveAttribute('data-role', 'defender');
   });
 
-  it('AC-09: each role-moveset-group contains exactly 2 recommended move items (Quick first, Charged second)', () => {
+  // AC-07: attacker blocks appear before the defender block
+  it('AC-07: attacker role blocks appear before the defender role block in document order', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    expect(blocks[blocks.length - 1]).toHaveAttribute('data-role', 'defender');
+  });
+
+  // AC-08: attacker blocks in primary-type-first order
+  it('AC-08: attacker role blocks appear in primary-type-first order (Rock then Dark)', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    expect(blocks[0]).toHaveAttribute('data-role-type', 'Rock');
+    expect(blocks[1]).toHaveAttribute('data-role-type', 'Dark');
+  });
+
+  // AC-09: each attacker block contains "[TypeId] attacker" label
+  it('AC-09: each attacker role block contains the "[TypeId] attacker" label', () => {
     render(
       <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
         attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
     );
-    const groups = within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group');
-    for (const group of groups) {
-      const items = within(group).getAllByTestId('move-item');
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    const rockBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Rock')!;
+    const darkBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Dark')!;
+    expect(within(rockBlock).getByText('Rock attacker')).toBeInTheDocument();
+    expect(within(darkBlock).getByText('Dark attacker')).toBeInTheDocument();
+  });
+
+  // AC-10: each attacker block has data-tier matching its attackerRoles tier
+  it('AC-10: each attacker role block has data-tier matching the attackerRoles tier', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    const rockBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Rock')!;
+    const darkBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Dark')!;
+    expect(rockBlock).toHaveAttribute('data-tier', 'S');
+    expect(darkBlock).toHaveAttribute('data-tier', 'A');
+  });
+
+  // AC-11: each attacker block contains exactly 2 recommended move items, Quick first, Charged second
+  it('AC-11: each attacker role block contains exactly two recommended move items, Quick first, Charged second', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
+        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    const attackerBlocks = blocks.filter((b) => b.getAttribute('data-role') === 'attacker');
+    for (const block of attackerBlocks) {
+      const roleType = block.getAttribute('data-role-type')!;
+      const items = within(block).getAllByTestId('move-item');
       expect(items).toHaveLength(2);
       expect(items[0]).toHaveAttribute('data-is-recommended', 'true');
       expect(items[1]).toHaveAttribute('data-is-recommended', 'true');
+      expect(items[0]).toHaveAttribute('data-move-type', roleType);
+      expect(items[1]).toHaveAttribute('data-move-type', roleType);
     }
   });
 
-  it('AC-10: first move item (Quick) in each group has data-move-type matching the group data-role-type', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
-        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
-    );
-    const groups = within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group');
-    for (const group of groups) {
-      const items = within(group).getAllByTestId('move-item');
-      expect(items[0]).toHaveAttribute('data-move-type', group.getAttribute('data-role-type'));
-    }
-  });
-
-  it('AC-11: second move item (Charged) in each group has data-move-type matching the group data-role-type', () => {
-    render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
-        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
-    );
-    const groups = within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group');
-    for (const group of groups) {
-      const items = within(group).getAllByTestId('move-item');
-      expect(items[1]).toHaveAttribute('data-move-type', group.getAttribute('data-role-type'));
-    }
-  });
-
-  it('AC-12: elite recommended move inside role-moveset-group carries data-is-elite="true" and data-is-recommended="true"', () => {
+  // AC-12: elite recommended move inside attacker block retains data-is-elite and italic style
+  it('AC-12: elite recommended move inside attacker role block carries data-is-elite="true"', () => {
     render(
       <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={ELITE_QUICK} chargedMoves={ELITE_CHARGED}
         attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
     );
-    const groups = within(screen.getByTestId('role-moveset-section')).getAllByTestId('role-moveset-group');
-    const rockGroup = groups.find((g) => g.getAttribute('data-role-type') === 'Rock')!;
-    const smackDown = within(rockGroup).getAllByTestId('move-item').find((i) => i.getAttribute('data-move-name') === 'Smack Down');
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    const rockBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Rock')!;
+    const smackDown = within(rockBlock).getAllByTestId('move-item').find((i) => i.getAttribute('data-move-name') === 'Smack Down')!;
     expect(smackDown).toHaveAttribute('data-is-elite', 'true');
     expect(smackDown).toHaveAttribute('data-is-recommended', 'true');
   });
 
-  it('AC-13: quick-moves-group contains no recommended move items for a multi-role Pokémon', () => {
+  // AC-13: defender block contains "Defender" text
+  it('AC-13: the defender role block contains the text "Defender"', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const defBlock = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block').find((b) => b.getAttribute('data-role') === 'defender')!;
+    expect(within(defBlock).getByText('Defender')).toBeInTheDocument();
+  });
+
+  // AC-14: defender block has data-tier matching defenderTier
+  it('AC-14: the defender role block has data-tier matching defenderTier', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const defBlock = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block').find((b) => b.getAttribute('data-role') === 'defender')!;
+    expect(defBlock).toHaveAttribute('data-tier', 'B');
+  });
+
+  // AC-15: defender block contains no move items
+  it('AC-15: the defender role block contains no move-item elements', () => {
     render(
       <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
         attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const defBlock = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block').find((b) => b.getAttribute('data-role') === 'defender')!;
+    expect(within(defBlock).queryAllByTestId('move-item')).toHaveLength(0);
+  });
+
+  // AC-16: no data-tier element exists outside pve-roles-section
+  it('AC-16: no element carrying data-tier exists outside pve-roles-section', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const rolesSection = screen.getByTestId('pve-roles-section');
+    const allTierElements = document.querySelectorAll('[data-tier]');
+    for (const el of Array.from(allTierElements)) {
+      expect(rolesSection.contains(el)).toBe(true);
+    }
+  });
+
+  // AC-17: retired role-tier-section is absent
+  it('AC-17: role-tier-section element is absent', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('role-tier-section')).not.toBeInTheDocument();
+  });
+
+  // AC-18: retired role-moveset-section is absent
+  it('AC-18: role-moveset-section element is absent', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
+        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    expect(screen.queryByTestId('role-moveset-section')).not.toBeInTheDocument();
+  });
+
+  // AC-19: single-role Pokémon — quick-moves-group contains no recommended moves
+  it('AC-19: for single-role Pokémon, quick-moves-group contains no recommended move items', () => {
+    render(
+      <PokemonCard name="Absol" primaryType={DARK} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={SINGLE_QUICK} chargedMoves={SINGLE_CHARGED}
+        attackerRoles={SINGLE_ROLE} defenderTier="C" onSelect={jest.fn()} />
     );
     const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
     expect(items.every((i) => i.getAttribute('data-is-recommended') === 'false')).toBe(true);
   });
 
-  it('AC-14: charged-moves-group contains no recommended move items for a multi-role Pokémon', () => {
+  // AC-20: single-role Pokémon — charged-moves-group contains no recommended moves
+  it('AC-20: for single-role Pokémon, charged-moves-group contains no recommended move items', () => {
     render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
-        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+      <PokemonCard name="Absol" primaryType={DARK} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={SINGLE_QUICK} chargedMoves={SINGLE_CHARGED}
+        attackerRoles={SINGLE_ROLE} defenderTier="C" onSelect={jest.fn()} />
     );
     const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
     expect(items.every((i) => i.getAttribute('data-is-recommended') === 'false')).toBe(true);
   });
 
-  it('AC-15: moves in role-moveset-groups do not appear in quick-moves-group or charged-moves-group', () => {
+  // AC-21: fallback Pokémon — quick-moves-group contains the recommended move
+  it('AC-21: for fallback Pokémon, quick-moves-group contains the recommended move', () => {
     render(
-      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={TYRANITAR_QUICK} chargedMoves={TYRANITAR_CHARGED}
-        attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+      <PokemonCard name="Fallback" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={FALLBACK_QUICK} chargedMoves={FALLBACK_CHARGED}
+        attackerRoles={[]} defenderTier="C" onSelect={jest.fn()} />
     );
-    const roleNames = new Set(
-      within(screen.getByTestId('role-moveset-section')).getAllByTestId('move-item').map((i) => i.getAttribute('data-move-name'))
-    );
-    const standardItems = [
-      ...within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item'),
-      ...within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item'),
-    ];
-    standardItems.forEach((item) => expect(roleNames.has(item.getAttribute('data-move-name'))).toBe(false));
+    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
+    expect(items.some((i) => i.getAttribute('data-is-recommended') === 'true')).toBe(true);
   });
 
-  it('AC-16: quick-moves-group is absent when all quick moves are recommended for roles', () => {
+  // AC-22: fallback Pokémon — charged-moves-group contains the recommended move
+  it('AC-22: for fallback Pokémon, charged-moves-group contains the recommended move', () => {
+    render(
+      <PokemonCard name="Fallback" primaryType={FIRE} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={FALLBACK_QUICK} chargedMoves={FALLBACK_CHARGED}
+        attackerRoles={[]} defenderTier="C" onSelect={jest.fn()} />
+    );
+    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
+    expect(items.some((i) => i.getAttribute('data-is-recommended') === 'true')).toBe(true);
+  });
+
+  // AC-23: no "attacker" text inside defender block
+  it('AC-23: no text matching "attacker" appears inside the defender role block', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const defBlock = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block').find((b) => b.getAttribute('data-role') === 'defender')!;
+    expect(within(defBlock).queryByText(/attacker/)).toBeNull();
+  });
+
+  // AC-24: "Defender" text does not appear inside any attacker block
+  it('AC-24: the word "Defender" does not appear inside any attacker role block', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier="B" onSelect={jest.fn()} />
+    );
+    const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+    const attackerBlocks = blocks.filter((b) => b.getAttribute('data-role') === 'attacker');
+    for (const block of attackerBlocks) {
+      expect(within(block).queryByText('Defender')).toBeNull();
+    }
+  });
+
+  // AC-25/AC-26: live dataset validation
+  describe('live dataset', () => {
+    let liveCatalog: ReturnType<typeof parsePokemonData>;
+    beforeAll(() => {
+      liveCatalog = parsePokemonData(pokemonData);
+    });
+
+    it('AC-25: a representative sample of at least ten Pokémon across categories all render pve-roles-section', () => {
+      const fallback  = liveCatalog.entries.filter((e) => e.attackerRoles.length === 0).slice(0, 4);
+      const single    = liveCatalog.entries.filter((e) => e.attackerRoles.length === 1).slice(0, 3);
+      const multi     = liveCatalog.entries.filter((e) => e.attackerRoles.length >= 2).slice(0, 3);
+      const sample    = [...fallback, ...single, ...multi];
+      expect(sample.length).toBeGreaterThanOrEqual(10);
+      for (const entry of sample) {
+        const { unmount } = render(
+          <PokemonCard
+            name={entry.name}
+            primaryType={entry.primaryType}
+            secondaryType={entry.secondaryType}
+            stats={entry.stats}
+            statMaxima={liveCatalog.statMaxima}
+            evolvesFrom={entry.evolvesFrom}
+            evolvesTo={entry.evolvesTo}
+            quickMoves={entry.quickMoves}
+            chargedMoves={entry.chargedMoves}
+            attackerRoles={entry.attackerRoles}
+            defenderTier={entry.defenderTier}
+            onSelect={jest.fn()}
+          />
+        );
+        expect(screen.getByTestId('pve-roles-section')).toBeInTheDocument();
+        unmount();
+      }
+    });
+
+    it('AC-26: Tyranitar renders three role blocks — Rock attacker (S), Dark attacker (A or S), Defender', () => {
+      const ttar = liveCatalog.entries.find((e) => e.name === 'Tyranitar')!;
+      expect(ttar).toBeDefined();
+      expect(ttar.attackerRoles).toHaveLength(2);
+      expect(ttar.attackerRoles[0].typeId).toBe('Rock');
+      expect(ttar.attackerRoles[1].typeId).toBe('Dark');
+      render(
+        <PokemonCard
+          name={ttar.name}
+          primaryType={ttar.primaryType}
+          secondaryType={ttar.secondaryType}
+          stats={ttar.stats}
+          statMaxima={liveCatalog.statMaxima}
+          evolvesFrom={ttar.evolvesFrom}
+          evolvesTo={ttar.evolvesTo}
+          quickMoves={ttar.quickMoves}
+          chargedMoves={ttar.chargedMoves}
+          attackerRoles={ttar.attackerRoles}
+          defenderTier={ttar.defenderTier}
+          onSelect={jest.fn()}
+        />
+      );
+      const blocks = within(screen.getByTestId('pve-roles-section')).getAllByTestId('role-block');
+      expect(blocks).toHaveLength(3);
+      const rockBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Rock')!;
+      const darkBlock = blocks.find((b) => b.getAttribute('data-role-type') === 'Dark')!;
+      const defBlock  = blocks.find((b) => b.getAttribute('data-role') === 'defender')!;
+      expect(rockBlock).toHaveAttribute('data-tier', 'S');
+      expect(['S', 'A']).toContain(darkBlock.getAttribute('data-tier'));
+      expect(defBlock).toBeInTheDocument();
+    });
+  });
+
+  // also verify multi-role all-recommended filtering still works (no standard groups)
+  it('quick-moves-group absent when all quick moves are role-recommended (multi-role)', () => {
     render(
       <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
         evolvesFrom={null} evolvesTo={[]} quickMoves={ALL_REC_QUICK} chargedMoves={ALL_REC_CHARGED}
         attackerRoles={FIRE_FLYING_ROLES} defenderTier="C" onSelect={jest.fn()} />
     );
     expect(screen.queryByTestId('quick-moves-group')).not.toBeInTheDocument();
-  });
-
-  it('AC-17: charged-moves-group is absent when all charged moves are recommended for roles', () => {
-    render(
-      <PokemonCard name="Charizard" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={ALL_REC_QUICK} chargedMoves={ALL_REC_CHARGED}
-        attackerRoles={FIRE_FLYING_ROLES} defenderTier="C" onSelect={jest.fn()} />
-    );
     expect(screen.queryByTestId('charged-moves-group')).not.toBeInTheDocument();
   });
-
-  it('AC-18: for single-role Pokémon, quick-moves-group contains the recommended move', () => {
-    render(
-      <PokemonCard name="Absol" primaryType={DARK} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={SINGLE_QUICK} chargedMoves={SINGLE_CHARGED}
-        attackerRoles={SINGLE_ROLE} defenderTier="C" onSelect={jest.fn()} />
-    );
-    const items = within(screen.getByTestId('quick-moves-group')).getAllByTestId('move-item');
-    expect(items.filter((i) => i.getAttribute('data-is-recommended') === 'true')).toHaveLength(1);
-  });
-
-  it('AC-19: for single-role Pokémon, charged-moves-group contains the recommended move', () => {
-    render(
-      <PokemonCard name="Absol" primaryType={DARK} secondaryType={null} stats={BALANCED} statMaxima={MAXIMA}
-        evolvesFrom={null} evolvesTo={[]} quickMoves={SINGLE_QUICK} chargedMoves={SINGLE_CHARGED}
-        attackerRoles={SINGLE_ROLE} defenderTier="C" onSelect={jest.fn()} />
-    );
-    const items = within(screen.getByTestId('charged-moves-group')).getAllByTestId('move-item');
-    expect(items.filter((i) => i.getAttribute('data-is-recommended') === 'true')).toHaveLength(1);
-  });
 });
+

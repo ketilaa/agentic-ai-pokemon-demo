@@ -120,105 +120,100 @@ function MoveGroup({
   );
 }
 
-function RoleMovesetSection({
+function PveRolesSection({
   attackerRoles,
+  defenderTier,
   quickMoves,
   chargedMoves,
 }: {
   attackerRoles: readonly AttackerRoleTier[];
+  defenderTier: TierLabel;
   quickMoves: readonly MoveEntry[];
   chargedMoves: readonly MoveEntry[];
 }) {
-  const groups = attackerRoles.flatMap((role) => {
-    const quick = quickMoves.find((m) => m.isRecommended && m.typeId === role.typeId) ?? null;
-    const charged = chargedMoves.find((m) => m.isRecommended && m.typeId === role.typeId) ?? null;
-    if (quick === null && charged === null) return [];
-    return [{ typeId: role.typeId, quick, charged }];
-  });
-  if (groups.length === 0) return null;
-  return (
-    <Box data-testid="role-moveset-section" sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-      {groups.map(({ typeId, quick, charged }) => (
-        <Box
-          key={typeId}
-          data-testid="role-moveset-group"
-          data-role-type={typeId}
-          sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
-        >
-          <Typography
-            variant="caption"
-            sx={{ color: 'text.secondary', fontSize: '0.6rem', lineHeight: 1, fontWeight: 500 }}
-          >
-            {typeId} attacker
-          </Typography>
-          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-            {quick && <MoveItem move={quick} />}
-            {charged && <MoveItem move={charged} />}
-          </Box>
-        </Box>
-      ))}
-    </Box>
-  );
-}
-
-function RoleTierSection({
-  attackerRoles,
-  defenderTier,
-}: {
-  attackerRoles: readonly AttackerRoleTier[];
-  defenderTier: TierLabel;
-}) {
   return (
     <Box
-      data-testid="role-tier-section"
-      sx={{ mt: 1, mb: 0.25, display: 'flex', gap: 0.5, flexWrap: 'wrap' }}
+      data-testid="pve-roles-section"
+      sx={{ mt: 1, mb: 0.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}
     >
       {attackerRoles.map((role) => {
         const color = TYPE_COLORS[role.typeId] ?? '#888888';
+        const quick = quickMoves.find((m) => m.isRecommended && m.typeId === role.typeId) ?? null;
+        const charged = chargedMoves.find((m) => m.isRecommended && m.typeId === role.typeId) ?? null;
         return (
           <Box
             key={role.typeId}
-            component="span"
+            data-testid="role-block"
             data-role="attacker"
-            data-type-id={role.typeId}
+            data-role-type={role.typeId}
             data-tier={role.tier}
-            sx={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              width: 20,
-              height: 20,
-              borderRadius: '3px',
-              bgcolor: alpha(color, 0.8),
-              fontSize: '0.6rem',
-              fontWeight: 700,
-              color: '#fff',
-              lineHeight: 1,
-            }}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
           >
-            {role.tier}
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+              <Typography
+                variant="caption"
+                sx={{ color: 'text.secondary', fontSize: '0.6rem', lineHeight: 1, fontWeight: 500 }}
+              >
+                {role.typeId} attacker
+              </Typography>
+              <Box
+                component="span"
+                sx={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  width: 16,
+                  height: 16,
+                  borderRadius: '3px',
+                  bgcolor: alpha(color, 0.8),
+                  fontSize: '0.55rem',
+                  fontWeight: 700,
+                  color: '#fff',
+                  lineHeight: 1,
+                }}
+              >
+                {role.tier}
+              </Box>
+            </Box>
+            {(quick !== null || charged !== null) && (
+              <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+                {quick && <MoveItem move={quick} />}
+                {charged && <MoveItem move={charged} />}
+              </Box>
+            )}
           </Box>
         );
       })}
       <Box
-        component="span"
+        data-testid="role-block"
         data-role="defender"
         data-tier={defenderTier}
-        sx={{
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          width: 20,
-          height: 20,
-          borderRadius: '3px',
-          bgcolor: 'rgba(90,90,90,0.45)',
-          fontSize: '0.6rem',
-          fontWeight: 700,
-          color: '#fff',
-          lineHeight: 1,
-        }}
+        sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}
       >
-        {defenderTier}
+        <Typography
+          variant="caption"
+          sx={{ color: 'text.secondary', fontSize: '0.6rem', lineHeight: 1, fontWeight: 500 }}
+        >
+          Defender
+        </Typography>
+        <Box
+          component="span"
+          sx={{
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            width: 16,
+            height: 16,
+            borderRadius: '3px',
+            bgcolor: 'rgba(90,90,90,0.45)',
+            fontSize: '0.55rem',
+            fontWeight: 700,
+            color: '#fff',
+            lineHeight: 1,
+          }}
+        >
+          {defenderTier}
+        </Box>
       </Box>
     </Box>
   );
@@ -234,18 +229,11 @@ function MoveSection({
   attackerRoles: readonly AttackerRoleTier[];
 }) {
   if (quickMoves.length === 0 && chargedMoves.length === 0) return null;
-  const isMultiRole = attackerRoles.length >= 2;
-  const displayedQuickMoves = isMultiRole ? quickMoves.filter((m) => !m.isRecommended) : quickMoves;
-  const displayedChargedMoves = isMultiRole ? chargedMoves.filter((m) => !m.isRecommended) : chargedMoves;
+  const hasRoles = attackerRoles.length >= 1;
+  const displayedQuickMoves = hasRoles ? quickMoves.filter((m) => !m.isRecommended) : quickMoves;
+  const displayedChargedMoves = hasRoles ? chargedMoves.filter((m) => !m.isRecommended) : chargedMoves;
   return (
     <Box data-testid="move-section" sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
-      {isMultiRole && (
-        <RoleMovesetSection
-          attackerRoles={attackerRoles}
-          quickMoves={quickMoves}
-          chargedMoves={chargedMoves}
-        />
-      )}
       <MoveGroup
         moves={displayedQuickMoves}
         groupTestId="quick-moves-group"
@@ -327,7 +315,7 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       </Box>
       <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
-        <RoleTierSection attackerRoles={attackerRoles} defenderTier={defenderTier} />
+        <PveRolesSection attackerRoles={attackerRoles} defenderTier={defenderTier} quickMoves={quickMoves} chargedMoves={chargedMoves} />
         <MoveSection quickMoves={quickMoves} chargedMoves={chargedMoves} attackerRoles={attackerRoles} />
         {(evolvesFrom !== null || evolvesTo.length > 0) && (
           <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>
