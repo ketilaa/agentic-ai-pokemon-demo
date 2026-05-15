@@ -1,6 +1,6 @@
 # Spec 0016 – Pokémon Card Move STAB and Role-Identity Recommendation Refinement
 
-**Status:** Draft  
+**Status:** Revised  
 **Iteration:** 16  
 **Author:** Architect agent  
 **Date:** 2026-05-15
@@ -44,9 +44,9 @@ Practical effectiveness is evaluated using the following factors in priority ord
 
 **Factor 1 – STAB preference**
 
-A quick move whose type matches one of the Pokémon's own types (STAB) benefits from a 20% damage multiplier on every activation in gym and raid encounters. When a STAB quick move exists in the pool and its energy generation is not substantially lower than the best available non-STAB quick move, the STAB move is preferred. The damage bonus is consistent and free; it represents better practical output throughout the encounter.
+A quick move whose type matches one of the Pokémon's own types (STAB) benefits from a 20% damage multiplier on every activation in gym and raid encounters. When a STAB quick move exists in the pool, it is preferred unless the best available non-STAB quick move has an energy generation advantage large enough that the resulting increase in charged move frequency would outweigh the STAB damage bonus across a typical raid encounter. When the energy generation gap is small enough that a player would not notice a meaningful difference in charged move frequency, the STAB bonus tips the balance.
 
-A non-STAB quick move may still be recommended when its energy generation substantially exceeds all STAB alternatives — that is, when the gap is large enough that the STAB damage contribution cannot compensate in practical PvE play. Energy generation remains decisive when the advantage is clear.
+A non-STAB quick move may still be recommended when its energy generation advantage is large enough that the additional charged move activations it enables deliver more total benefit than the per-activation STAB damage contribution — a gap that represents a genuine practical difference in raid effectiveness, not merely a marginal paper improvement. Energy generation remains decisive when the advantage is clear.
 
 When no STAB quick move exists in the pool, this factor does not apply and the remaining factors determine recommendation.
 
@@ -54,9 +54,9 @@ When all quick moves in the pool are STAB, this factor does not differentiate am
 
 **Factor 2 – Role identity**
 
-For Pokémon with high base Attack relative to the dataset, a quick move matching the Pokémon's primary type receives additional preference when energy generation is comparable to alternatives. High-Attack Pokémon function as type-specialized attackers in gym and raid battles; their primary type is their combat identity. When a primary-type quick move is available and its energy generation is comparable to secondary-type or off-type alternatives, the primary-type move better represents how the Pokémon is actually used.
+Factor 2 applies only when Factor 1 did not yield a clear winner — specifically when all quick moves in the pool are STAB (so the STAB-vs-non-STAB comparison in Factor 1 does not differentiate among them) or when energy generation is equal between remaining candidates.
 
-Role identity does not override Factor 1 when a secondary-type or off-type STAB move has energy generation that is substantially and clearly superior. It applies when comparing moves where energy generation is close and the question is which type match to prefer.
+Within that scope, for Pokémon with high base Attack relative to the dataset, a quick move matching the Pokémon's primary type is preferred over a move matching only the secondary type. High-Attack Pokémon function as type-specialized attackers in gym and raid battles; their primary type is their combat identity. When two STAB quick moves are otherwise equivalent, the primary-type move reflects how the Pokémon is actually deployed.
 
 This factor applies only to Pokémon whose base Attack is substantially above the dataset mean. For all other Pokémon, this factor is skipped.
 
@@ -89,9 +89,7 @@ A charged move that costs substantially less energy to fire is more reliably exe
 
 *STAB:* When no clear winner emerges from Factors 1 and 2, a STAB charged move is preferred over a non-STAB charged move when the STAB move's base power multiplied by 1.2 meets or exceeds the non-STAB move's base power. STAB does not override Factor 1 or Factor 2.
 
-*Role identity:* For Pokémon with high base Attack relative to the dataset, when both a primary-type move and a non-primary-type move have passed Factors 1 and 2 comparably and neither STAB consideration clearly favors one over the other, the primary-type move is preferred. This applies both when comparing a primary-type STAB move to an off-type move, and when comparing a primary-type STAB move to a secondary-type STAB move of comparable viability.
-
-Role identity does not override the STAB rule when a non-primary-type STAB move's power advantage is large enough that the STAB multiplier on the primary-type move cannot overcome it.
+*Role identity:* Role identity applies within Factor 3 only after the STAB comparison has been evaluated and did not yield a clear winner — that is, when both candidate moves are STAB with comparable power such that the 1.2× test does not differentiate them, or when neither candidate is STAB. In those cases, for Pokémon with high base Attack relative to the dataset, the primary-type move is preferred over a move matching only the secondary type or no type.
 
 **Factor 4 – Base power** (unchanged from spec 0015 §3.2)
 
@@ -147,7 +145,7 @@ All functional behavior from Iterations 13–15 is preserved, except that:
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-01 | A Pokémon with a STAB quick move and a non-STAB quick move, where the non-STAB move has marginally higher energy generation that the STAB damage bonus would compensate for in practice, receives `data-is-recommended="true"` on the STAB move. | Identify a Pokémon in the live dataset with at least one STAB quick move (energy X) and at least one non-STAB quick move (energy Y, where Y > X but the difference is not large enough that the STAB bonus cannot compensate). Render the Pokémon; confirm the STAB move carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
+| AC-01 | A Pokémon with a STAB quick move and a non-STAB quick move, where the non-STAB move has marginally higher energy generation, receives `data-is-recommended="true"` on the STAB move. | Identify a Pokémon in the live dataset with at least one STAB quick move (energy X) and at least one non-STAB quick move (energy Y, where Y > X but the gap falls within the range described in §3.1 Factor 1 — small enough that a player would not notice a meaningful difference in charged move frequency). Render the Pokémon; confirm the STAB move carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
 | AC-02 | A Pokémon with a non-STAB quick move that has substantially higher energy generation than all STAB alternatives receives `data-is-recommended="true"` on the non-STAB move (energy generation wins when the gap is large). | Identify a Pokémon in the live dataset, or introduce a test fixture, where the highest-energy non-STAB quick move has substantially greater energy generation than all STAB alternatives — a gap large enough that the STAB damage contribution does not compensate. Confirm the non-STAB move carries `data-is-recommended="true"`. |
 | AC-03 | When all quick moves in a pool are STAB, exactly one is still recommended and the recommendation is not affected by the absence of a non-STAB alternative. | Render a Pokémon whose full quick move pool consists entirely of STAB moves; confirm exactly one carries `data-is-recommended="true"`. |
 | AC-04 | When no quick move in the pool is STAB (all are off-type), the quick move with the highest energy generation is recommended, consistent with prior behavior. | Render a Pokémon whose full quick move pool consists entirely of non-STAB moves; confirm the move with the highest energy generation carries `data-is-recommended="true"`. If no such Pokémon exists in the live dataset, introduce a test fixture. |
@@ -156,8 +154,8 @@ All functional behavior from Iterations 13–15 is preserved, except that:
 
 | # | Criterion | How to verify |
 |---|-----------|---------------|
-| AC-05 | A high-Attack Pokémon with a primary-type quick move and an off-type or secondary-type quick move with comparable energy generation receives `data-is-recommended="true"` on the primary-type move. | Identify a Pokémon with base Attack substantially above the dataset mean, with at least one primary-type quick move and at least one off-type or secondary-type quick move where energy generation values are comparable. Confirm the primary-type move carries `data-is-recommended="true"`. The Pokémon Rampardos (Rock-type, high Attack, Smack Down vs Zen Headbutt) or Haxorus (Dragon-type, high Attack, Dragon Tail vs Counter) are candidate cases from the live dataset; the developer may use whichever is most clearly exemplary. If no live-dataset case is suitable, introduce a test fixture. |
-| AC-06 | A Pokémon with average or low base Attack does not have role identity applied: recommendation is determined by STAB and energy generation alone, not by primary type. | Identify a Pokémon with base Attack at or below the dataset mean; render it and confirm that recommendation is consistent with the STAB and energy generation factors — no primary-type override is applied. |
+| AC-05 | A high-Attack Pokémon whose entire quick move pool consists of STAB moves, where a primary-type STAB move and a secondary-type STAB move have equal or comparable energy generation, receives `data-is-recommended="true"` on the primary-type move. | Identify a Pokémon with base Attack substantially above the dataset mean whose quick move pool contains both a primary-type STAB move and a secondary-type STAB move with equal or comparable energy generation — isolating Factor 2 by ensuring Factor 1 cannot resolve the comparison. Rayquaza (Dragon/Flying, high Attack) is a candidate from the live dataset: Dragon Tail (Dragon, primary STAB, energy 8) and Air Slash (Flying, secondary STAB, energy 8) have equal energy, so Factor 1 does not differentiate them; Factor 2 should select Dragon Tail. Confirm the primary-type move carries `data-is-recommended="true"`. If no suitable live-dataset case exists, introduce a test fixture. |
+| AC-06 | A Pokémon with average or low base Attack does not have role identity applied: a non-primary-type quick move with substantially higher energy generation is recommended over a primary-type STAB alternative. | Identify a Pokémon with base Attack at or below the dataset mean that has at least one non-primary-type quick move with substantially higher energy generation than its primary-type STAB quick moves — a gap large enough that, per §3.1 Factor 1, energy generation wins. Confirm the non-primary-type move carries `data-is-recommended="true"`. This verifies that role identity is not applied outside the high-Attack category. If no such Pokémon exists in the live dataset, introduce a test fixture. |
 
 ### Charged move recommendation — role identity
 
