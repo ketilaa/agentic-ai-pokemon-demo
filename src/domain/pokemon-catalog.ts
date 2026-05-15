@@ -194,21 +194,20 @@ function computeHighAttackThreshold(allStats: readonly PokemonStats[]): number {
   return mean + Math.sqrt(variance);
 }
 
-// Selects the recommended quick move using 3-factor PvE viability (spec 0016 §3.1).
+// Quick move sort: spec 0016 §3.1 factors.
 // Factor 1: STAB preferred when stab_energy * 1.2 >= nonstab_energy
 // Factor 2: role identity — primary-type over secondary-type for high-Attack Pokémon
 //           (applies only when Factor 1 did not yield a clear winner)
 // Factor 3: higher energy generation
 // Tiebreaker: alphabetical by move name (localeCompare 'en').
-function applyQuickRecommended(
+function selectBestQuickDraft(
   drafts: readonly MoveDraft[],
   pokemonTypeIds: readonly string[],
   primaryTypeId: string,
   isHighAttack: boolean,
-): readonly MoveEntry[] {
-  if (drafts.length === 0) return Object.freeze([]);
-
-  const best = [...drafts].sort((a, b) => {
+): MoveDraft | null {
+  if (drafts.length === 0) return null;
+  return [...drafts].sort((a, b) => {
     const aStab = pokemonTypeIds.includes(a.typeId);
     const bStab = pokemonTypeIds.includes(b.typeId);
 
@@ -232,7 +231,16 @@ function applyQuickRecommended(
     // Tiebreaker: alphabetical by move name
     return a.name.localeCompare(b.name, 'en');
   })[0];
+}
 
+function applyQuickRecommended(
+  drafts: readonly MoveDraft[],
+  pokemonTypeIds: readonly string[],
+  primaryTypeId: string,
+  isHighAttack: boolean,
+): readonly MoveEntry[] {
+  if (drafts.length === 0) return Object.freeze([]);
+  const best = selectBestQuickDraft(drafts, pokemonTypeIds, primaryTypeId, isHighAttack)!;
   return Object.freeze(
     drafts.map((m) =>
       Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
@@ -240,7 +248,7 @@ function applyQuickRecommended(
   );
 }
 
-// Selects the recommended charged move using 4-factor PvE viability (spec 0015 §3.2, extended by spec 0016 §3.2).
+// Charged move sort: spec 0015 §3.2 factors, extended by spec 0016 §3.2.
 // Factors in priority order:
 //   1. Survivability-adjusted feasibility — high-cost moves suppressed for fragile Pokémon
 //   2. Energy efficiency — ≤50 energy cost clearly beats 100 energy cost
@@ -248,20 +256,20 @@ function applyQuickRecommended(
 //      role identity — primary-type preferred for high-Attack Pokémon when STAB did not differentiate
 //   4. Base power — higher wins among otherwise equal moves
 // Tiebreaker: alphabetical by move name (localeCompare 'en').
-function applyChargedRecommended(
+function selectBestChargedDraft(
   drafts: readonly MoveDraft[],
   pokemonTypeIds: readonly string[],
   primaryTypeId: string,
   isFragile: boolean,
   isHighAttack: boolean,
-): readonly MoveEntry[] {
-  if (drafts.length === 0) return Object.freeze([]);
+): MoveDraft | null {
+  if (drafts.length === 0) return null;
 
   const HIGH_COST = 100;
   const LOW_COST = 50;
   const hasNonHighCostAlternative = drafts.some((m) => m._energyCost < HIGH_COST);
 
-  const best = [...drafts].sort((a, b) => {
+  return [...drafts].sort((a, b) => {
     // Factor 1: suppress high-cost moves for fragile Pokémon when alternatives exist
     if (isFragile && hasNonHighCostAlternative) {
       const aHigh = a._energyCost >= HIGH_COST;
@@ -299,12 +307,83 @@ function applyChargedRecommended(
     // Tiebreaker: alphabetical by move name
     return a.name.localeCompare(b.name, 'en');
   })[0];
+}
 
+function applyChargedRecommended(
+  drafts: readonly MoveDraft[],
+  pokemonTypeIds: readonly string[],
+  primaryTypeId: string,
+  isFragile: boolean,
+  isHighAttack: boolean,
+): readonly MoveEntry[] {
+  if (drafts.length === 0) return Object.freeze([]);
+  const best = selectBestChargedDraft(drafts, pokemonTypeIds, primaryTypeId, isFragile, isHighAttack)!;
   return Object.freeze(
     drafts.map((m) =>
       Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: m.name === best.name })
     )
   );
+}
+
+// Returns the subset of pokemonTypeIds for which the move pools contain at least one
+// quick move AND at least one charged move of that type (spec 0017 §3.1).
+function computeViableRoles(
+  pokemonTypeIds: readonly string[],
+  quickDrafts: readonly MoveDraft[],
+  chargedDrafts: readonly MoveDraft[],
+): readonly string[] {
+  return pokemonTypeIds.filter(
+    (typeId) =>
+      quickDrafts.some((m) => m.typeId === typeId) &&
+      chargedDrafts.some((m) => m.typeId === typeId),
+  );
+}
+
+// Applies per-role recommendation (spec 0017 §3.2) when viable roles exist, or falls back
+// to the full-pool spec 0016 algorithm (spec 0017 §3.3) when no viable role is found.
+function applyMultiRoleRecommended(
+  quickDrafts: readonly MoveDraft[],
+  chargedDrafts: readonly MoveDraft[],
+  pokemonTypeIds: readonly string[],
+  primaryTypeId: string,
+  isFragile: boolean,
+  isHighAttack: boolean,
+): { readonly quickMoves: readonly MoveEntry[]; readonly chargedMoves: readonly MoveEntry[] } {
+  const viableRoles = computeViableRoles(pokemonTypeIds, quickDrafts, chargedDrafts);
+
+  if (viableRoles.length === 0) {
+    return {
+      quickMoves: applyQuickRecommended(quickDrafts, pokemonTypeIds, primaryTypeId, isHighAttack),
+      chargedMoves: applyChargedRecommended(chargedDrafts, pokemonTypeIds, primaryTypeId, isFragile, isHighAttack),
+    };
+  }
+
+  const recommendedQuickNames = new Set<string>();
+  const recommendedChargedNames = new Set<string>();
+
+  for (const roleTypeId of viableRoles) {
+    const roleQuickPool = quickDrafts.filter((m) => m.typeId === roleTypeId);
+    const roleChargedPool = chargedDrafts.filter((m) => m.typeId === roleTypeId);
+
+    const bestQuick = selectBestQuickDraft(roleQuickPool, pokemonTypeIds, primaryTypeId, isHighAttack);
+    if (bestQuick) recommendedQuickNames.add(bestQuick.name);
+
+    const bestCharged = selectBestChargedDraft(roleChargedPool, pokemonTypeIds, primaryTypeId, isFragile, isHighAttack);
+    if (bestCharged) recommendedChargedNames.add(bestCharged.name);
+  }
+
+  return {
+    quickMoves: Object.freeze(
+      quickDrafts.map((m) =>
+        Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: recommendedQuickNames.has(m.name) })
+      )
+    ),
+    chargedMoves: Object.freeze(
+      chargedDrafts.map((m) =>
+        Object.freeze({ name: m.name, typeId: m.typeId, isElite: m.isElite, isRecommended: recommendedChargedNames.has(m.name) })
+      )
+    ),
+  };
 }
 
 export function parsePokemonData(raw: unknown): PokemonCatalog {
@@ -376,20 +455,17 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       : [primaryTypeName];
     const isFragile = (stats.stamina + stats.defense) <= fragileThreshold;
     const isHighAttack = stats.attack > highAttackThreshold;
-    const quickMoves = applyQuickRecommended(
-      mergeMoveEntries(
-        extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
-        extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
-      ),
-      pokemonTypeIds,
-      primaryTypeName,
-      isHighAttack,
+    const quickDrafts = mergeMoveEntries(
+      extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
+      extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
     );
-    const chargedMoves = applyChargedRecommended(
-      mergeMoveEntries(
-        extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
-        extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
-      ),
+    const chargedDrafts = mergeMoveEntries(
+      extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
+      extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
+    );
+    const { quickMoves, chargedMoves } = applyMultiRoleRecommended(
+      quickDrafts,
+      chargedDrafts,
       pokemonTypeIds,
       primaryTypeName,
       isFragile,
