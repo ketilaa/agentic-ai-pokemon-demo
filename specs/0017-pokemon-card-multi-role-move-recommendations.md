@@ -1,6 +1,6 @@
 # Spec 0017 – Pokémon Card Multi-Role Move Recommendations
 
-**Status:** Revised  
+**Status:** Complete  
 **Iteration:** 17  
 **Author:** Architect agent  
 **Date:** 2026-05-15
