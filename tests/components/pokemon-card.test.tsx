@@ -4,7 +4,7 @@
 import { render, screen, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { PokemonCard } from '../../src/components/pokemon-card';
-import type { MoveEntry, PokemonStats, PokemonType, StatMaxima } from '../../src/domain/pokemon-catalog';
+import type { AttackerRoleTier, MoveEntry, PokemonStats, PokemonType, StatMaxima, TierLabel } from '../../src/domain/pokemon-catalog';
 import { TYPE_COLORS } from '../../src/domain/pokemon-catalog';
 
 // spec 0005: AC-02–AC-10
@@ -976,6 +976,94 @@ describe('PokemonCard – move recommendation and elite clarification (spec 0014
     expect(allText).not.toMatch(/elite/i);
     expect(allText).not.toMatch(/recommended/i);
     expect(allText).not.toMatch(/best/i);
+  });
+});
+
+describe('PokemonCard – role-tier section (spec 0018)', () => {
+  const ROCK: PokemonType = { name: 'Rock', color: '#AFA981' };
+  const DARK: PokemonType = { name: 'Dark', color: '#624D4E' };
+
+  const DUAL_ROLES: AttackerRoleTier[] = [
+    { typeId: 'Rock', tier: 'S' },
+    { typeId: 'Dark', tier: 'A' },
+  ];
+  const DEF_TIER: TierLabel = 'B';
+
+  it('AC-15: dual-role Pokémon renders two [data-role="attacker"] and one [data-role="defender"]', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
+    );
+    const attackerItems = document.querySelectorAll('[data-role="attacker"]');
+    const defenderItems = document.querySelectorAll('[data-role="defender"]');
+    expect(attackerItems).toHaveLength(2);
+    expect(defenderItems).toHaveLength(1);
+  });
+
+  it('AC-16: attacker elements carry correct data-type-id and data-tier; defender carries correct data-tier', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
+    );
+    const rockItem = document.querySelector('[data-role="attacker"][data-type-id="Rock"]');
+    const darkItem = document.querySelector('[data-role="attacker"][data-type-id="Dark"]');
+    const defItem  = document.querySelector('[data-role="defender"]');
+    expect(rockItem?.getAttribute('data-tier')).toBe('S');
+    expect(darkItem?.getAttribute('data-tier')).toBe('A');
+    expect(defItem?.getAttribute('data-tier')).toBe('B');
+  });
+
+  it('AC-17: Pokémon with no attacker roles renders no [data-role="attacker"] elements', () => {
+    render(
+      <PokemonCard name="Dragonite" primaryType={FIRE} secondaryType={FLYING} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={[]} defenderTier="C" onSelect={jest.fn()} />
+    );
+    expect(document.querySelectorAll('[data-role="attacker"]')).toHaveLength(0);
+    expect(document.querySelectorAll('[data-role="defender"]')).toHaveLength(1);
+  });
+
+  it('AC-19: role-tier section contains no explanatory text labels', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
+    );
+    const section = screen.getByTestId('role-tier-section');
+    const text = section.textContent ?? '';
+    expect(text).not.toMatch(/attacker|defender|tier|best|role/i);
+  });
+
+  it('AC-20: role-tier section contains no numeric stat values', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
+    );
+    const section = screen.getByTestId('role-tier-section');
+    expect(section.textContent ?? '').not.toMatch(/\b\d+\b/);
+  });
+
+  it('role-tier-section is inside card-content-section', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
+    );
+    const content = screen.getByTestId('card-content-section');
+    expect(within(content).getByTestId('role-tier-section')).toBeInTheDocument();
+  });
+
+  it('role-tier-section appears after stat-bar-sta and before move-section in document order', () => {
+    render(
+      <PokemonCard name="Tyranitar" primaryType={ROCK} secondaryType={DARK} stats={BALANCED} statMaxima={MAXIMA}
+        evolvesFrom={null} evolvesTo={[]} quickMoves={[{ name: 'Bite', typeId: 'Dark', isElite: false, isRecommended: true }]}
+        chargedMoves={[{ name: 'Crunch', typeId: 'Dark', isElite: false, isRecommended: true }]}
+        attackerRoles={DUAL_ROLES} defenderTier={DEF_TIER} onSelect={jest.fn()} />
+    );
+    const content = screen.getByTestId('card-content-section');
+    const nodes = Array.from(content.querySelectorAll('[data-testid]'));
+    const staIdx   = nodes.findIndex((n) => n.getAttribute('data-testid') === 'stat-bar-sta');
+    const tierIdx  = nodes.findIndex((n) => n.getAttribute('data-testid') === 'role-tier-section');
+    const moveIdx  = nodes.findIndex((n) => n.getAttribute('data-testid') === 'move-section');
+    expect(tierIdx).toBeGreaterThan(staIdx);
+    expect(moveIdx).toBeGreaterThan(tierIdx);
   });
 });
 

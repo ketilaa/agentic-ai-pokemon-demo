@@ -16,6 +16,13 @@ export interface MoveEntry {
   readonly isRecommended: boolean;
 }
 
+export type TierLabel = 'S' | 'A' | 'B' | 'C';
+
+export interface AttackerRoleTier {
+  readonly typeId: string;
+  readonly tier: TierLabel;
+}
+
 export interface PokemonEntry {
   readonly name: string;
   readonly primaryType: PokemonType;
@@ -26,6 +33,8 @@ export interface PokemonEntry {
   readonly imageUrl: string | null;
   readonly quickMoves: readonly MoveEntry[];
   readonly chargedMoves: readonly MoveEntry[];
+  readonly attackerRoles: readonly AttackerRoleTier[];
+  readonly defenderTier: TierLabel;
 }
 
 export interface StatMaxima {
@@ -386,6 +395,35 @@ function applyMultiRoleRecommended(
   };
 }
 
+// Defender tier (spec 0018 §3.4): population stdev of Defense+Stamina sum across full dataset.
+// S: ≥ mean+σ; A: ≥ mean; B: ≥ mean−σ; C: otherwise.
+// Fragility constraint (AC-12) is satisfied automatically: fragileThreshold (0.65×mean) < mean−σ
+// for the live dataset (fragileThreshold≈205 < B-threshold≈236).
+function computeDefenderTierLabel(defSta: number, mean: number, stdev: number): TierLabel {
+  if (defSta >= mean + stdev) return 'S';
+  if (defSta >= mean) return 'A';
+  if (defSta >= mean - stdev) return 'B';
+  return 'C';
+}
+
+// Attacker tier (spec 0018 §3.3): population stdev of Attack within the type-T attacker pool.
+// Small pool rule: 1→S only; 2→S/A; 3→S/A/B; 4+→all four tiers.
+// Survivability adjustment: not applied — base Attack ordering satisfies all live-dataset anchors
+// (Rampardos S Rock, Tyranitar S Rock and S Dark).
+function computeAttackerTierLabel(attack: number, mean: number, stdev: number, poolSize: number): TierLabel {
+  if (poolSize === 1) return 'S';
+  if (poolSize === 2) return attack >= mean ? 'S' : 'A';
+  if (poolSize === 3) {
+    if (attack >= mean + stdev) return 'S';
+    if (attack >= mean) return 'A';
+    return 'B';
+  }
+  if (attack >= mean + stdev) return 'S';
+  if (attack >= mean) return 'A';
+  if (attack >= mean - stdev) return 'B';
+  return 'C';
+}
+
 export function parsePokemonData(raw: unknown): PokemonCatalog {
   if (!Array.isArray(raw)) {
     throw new Error('Pokémon data must be a JSON array');
@@ -394,14 +432,49 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
     throw new Error('Pokémon data array must not be empty');
   }
 
-  // Pre-pass: collect all valid stats to compute the fragility threshold for charged move recommendation.
+  // Pre-pass: collect valid stats and build per-type attacker pools for tier computation.
   const allValidStats: PokemonStats[] = [];
+  const typeAttackerPools = new Map<string, number[]>();
   for (const item of raw as unknown[]) {
     const stats = extractStats(item);
-    if (stats) allValidStats.push(stats);
+    if (!stats) continue;
+    allValidStats.push(stats);
+    const primaryTypeName = extractTypeName((item as Record<string, unknown>).primaryType);
+    const secondaryTypeName = extractTypeName((item as Record<string, unknown>).secondaryType);
+    if (!primaryTypeName) continue;
+    const pokemonTypeIds = secondaryTypeName ? [primaryTypeName, secondaryTypeName] : [primaryTypeName];
+    const rawItem = item as Record<string, unknown>;
+    const preQuickDrafts = mergeMoveEntries(
+      extractMovesWithStat(rawItem.quickMoves, false, 'energy'),
+      extractMovesWithStat(rawItem.eliteQuickMoves, true, 'energy'),
+    );
+    const preChargedDrafts = mergeMoveEntries(
+      extractMovesWithStat(rawItem.cinematicMoves, false, 'power'),
+      extractMovesWithStat(rawItem.eliteCinematicMoves, true, 'power'),
+    );
+    for (const typeId of computeViableRoles(pokemonTypeIds, preQuickDrafts, preChargedDrafts)) {
+      if (!typeAttackerPools.has(typeId)) typeAttackerPools.set(typeId, []);
+      typeAttackerPools.get(typeId)!.push(stats.attack);
+    }
   }
   const fragileThreshold = computeFragileThreshold(allValidStats);
   const highAttackThreshold = computeHighAttackThreshold(allValidStats);
+
+  // Defender tier stats: population stdev of Defense+Stamina across full dataset.
+  const defenderMean = allValidStats.length > 0
+    ? allValidStats.reduce((s, p) => s + p.defense + p.stamina, 0) / allValidStats.length
+    : 0;
+  const defenderStdev = allValidStats.length > 0
+    ? Math.sqrt(allValidStats.reduce((s, p) => s + (p.defense + p.stamina - defenderMean) ** 2, 0) / allValidStats.length)
+    : 0;
+
+  // Per-type attacker pool stats: mean and population stdev of Attack within each type pool.
+  const typePoolStats = new Map<string, { mean: number; stdev: number; size: number }>();
+  for (const [typeId, attacks] of typeAttackerPools) {
+    const mean = attacks.reduce((s, v) => s + v, 0) / attacks.length;
+    const stdev = Math.sqrt(attacks.reduce((s, v) => s + (v - mean) ** 2, 0) / attacks.length);
+    typePoolStats.set(typeId, { mean, stdev, size: attacks.length });
+  }
 
   // Build id → English name map for resolving evolution targets
   const idToName = new Map<string, string>();
@@ -472,6 +545,22 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       isHighAttack,
     );
 
+    const defenderTier = computeDefenderTierLabel(stats.defense + stats.stamina, defenderMean, defenderStdev);
+
+    // Attacker roles ordered by Pokémon's type order (primary first) per spec 0018 §3.5.
+    const viableRoleTypes = computeViableRoles(pokemonTypeIds, quickDrafts, chargedDrafts);
+    const attackerRoles: readonly AttackerRoleTier[] = Object.freeze(
+      pokemonTypeIds
+        .filter((typeId) => viableRoleTypes.includes(typeId))
+        .map((typeId): AttackerRoleTier => {
+          const pool = typePoolStats.get(typeId);
+          const tier: TierLabel = pool
+            ? computeAttackerTierLabel(stats.attack, pool.mean, pool.stdev, pool.size)
+            : 'C';
+          return Object.freeze({ typeId, tier });
+        })
+    );
+
     entries.push({
       name,
       primaryType: toType(primaryTypeName),
@@ -482,6 +571,8 @@ export function parsePokemonData(raw: unknown): PokemonCatalog {
       imageUrl: extractImageUrl(item),
       quickMoves,
       chargedMoves,
+      attackerRoles,
+      defenderTier,
     });
   }
 
