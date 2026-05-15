@@ -1,6 +1,6 @@
 # Spec 0020 – Pokémon Card Role-Anchored Tier Presentation
 
-**Status:** In Progress  
+**Status:** Complete  
 **Iteration:** 20  
 **Author:** Architect agent  
 **Date:** 2026-05-15
