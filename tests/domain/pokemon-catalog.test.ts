@@ -1031,6 +1031,206 @@ describe('parsePokemonData - spec 0016 role identity charged move recommendation
   });
 });
 
+// Spec 0017 helpers
+// Tyranitar fixture: matches live-dataset move pool exactly.
+// Rock/Dark, attack=251. Viable roles: Rock (Smack Down quick + Stone Edge charged)
+// and Dark (Bite quick + Crunch/Brutal Swing charged).
+const TYRANITAR_LIKE = {
+  ...makeEntry('Tyranitar', 'Rock', 'Dark', { attack: 251, defense: 207, stamina: 225 }),
+  quickMoves: {
+    BITE_FAST:          makeMove('Dark',   'Bite',          { energy: 4 }),
+    IRON_TAIL_FAST:     makeMove('Steel',  'Iron Tail',     { energy: 6 }),
+    DRAGON_BREATH_FAST: makeMove('Dragon', 'Dragon Breath', { energy: 4 }),
+  },
+  eliteQuickMoves: {
+    SMACK_DOWN_FAST: makeMove('Rock', 'Smack Down', { energy: 7 }),
+  },
+  cinematicMoves: {
+    FIRE_BLAST:   makeMove('Fire', 'Fire Blast',   { power: 140, energy: -100 }),
+    CRUNCH:       makeMove('Dark', 'Crunch',       { power: 65,  energy: -33  }),
+    STONE_EDGE:   makeMove('Rock', 'Stone Edge',   { power: 105, energy: -100 }),
+    BRUTAL_SWING: makeMove('Dark', 'Brutal Swing', { power: 65,  energy: -33  }),
+  },
+  eliteCinematicMoves: [],
+};
+
+// 3×attack=100 + Tyranitar attack=251 → mean≈137.75, stdev≈65.4, threshold≈203.15
+// → Tyranitar (251) qualifies as high-attack in this dataset
+const buildMultiRoleDataset = (mainEntry: object) => [
+  makeNormalAtkEntry('Filler1'),
+  makeNormalAtkEntry('Filler2'),
+  makeNormalAtkEntry('Filler3'),
+  mainEntry,
+];
+
+describe('parsePokemonData - spec 0017 multi-role move recommendations', () => {
+  it('AC-01: dual-role Pokémon has one recommended Quick and one recommended Charged per viable role', () => {
+    const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+    const ttар = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+
+    const recQuick = ttар.quickMoves.filter((m) => m.isRecommended);
+    expect(recQuick).toHaveLength(2);
+    expect(recQuick.map((m) => m.typeId).sort()).toEqual(['Dark', 'Rock']);
+    expect(ttар.quickMoves.find((m) => m.name === 'Smack Down')?.isRecommended).toBe(true);
+    expect(ttар.quickMoves.find((m) => m.name === 'Bite')?.isRecommended).toBe(true);
+
+    const recCharged = ttар.chargedMoves.filter((m) => m.isRecommended);
+    expect(recCharged).toHaveLength(2);
+    expect(recCharged.map((m) => m.typeId).sort()).toEqual(['Dark', 'Rock']);
+    expect(ttар.chargedMoves.find((m) => m.name === 'Stone Edge')?.isRecommended).toBe(true);
+    // Brutal Swing wins Dark charged tiebreaker over Crunch ('B' < 'C')
+    expect(ttар.chargedMoves.find((m) => m.name === 'Brutal Swing')?.isRecommended).toBe(true);
+  });
+
+  it('AC-01: off-type moves on a multi-role Pokémon are not recommended', () => {
+    const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+    const ttар = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+
+    expect(ttар.quickMoves.find((m) => m.name === 'Iron Tail')?.isRecommended).toBe(false);
+    expect(ttар.quickMoves.find((m) => m.name === 'Dragon Breath')?.isRecommended).toBe(false);
+    expect(ttар.chargedMoves.find((m) => m.name === 'Fire Blast')?.isRecommended).toBe(false);
+    expect(ttар.chargedMoves.find((m) => m.name === 'Crunch')?.isRecommended).toBe(false);
+  });
+
+  it('AC-02: single-type Pokémon with a viable role has exactly one recommended per slot', () => {
+    const raw = [{
+      ...makeEntry('Absol', 'Dark'),
+      quickMoves: { SNARL_FAST: makeMove('Dark', 'Snarl', { energy: 13 }) },
+      eliteQuickMoves: {},
+      cinematicMoves: { DARK_PULSE: makeMove('Dark', 'Dark Pulse', { power: 80, energy: -50 }) },
+      eliteCinematicMoves: [],
+    }];
+    const { quickMoves, chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(chargedMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(quickMoves[0].isRecommended).toBe(true);
+    expect(chargedMoves[0].isRecommended).toBe(true);
+  });
+
+  it('AC-02: dual-type Pokémon where one type lacks charged coverage has exactly one viable role', () => {
+    // Fire/Flying: Fire has quick+charged; Flying has quick but no Flying charged → only Fire role
+    const raw = [{
+      ...makeEntry('Moltres', 'Fire', 'Flying'),
+      quickMoves: {
+        EMBER_FAST:       makeMove('Fire',   'Ember',       { energy: 10 }),
+        WING_ATTACK_FAST: makeMove('Flying', 'Wing Attack', { energy: 8  }),
+      },
+      eliteQuickMoves: [],
+      cinematicMoves: { OVERHEAT: makeMove('Fire', 'Overheat', { power: 160, energy: -100 }) },
+      eliteCinematicMoves: [],
+    }];
+    const { quickMoves, chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(chargedMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(quickMoves.find((m) => m.name === 'Ember')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Wing Attack')?.isRecommended).toBe(false);
+  });
+
+  it('AC-03: fallback when no type spans both quick and charged slots — exactly one recommended per slot', () => {
+    // Dragon/Flying: quick moves are Dragon only; charged moves are Flying only → no viable role
+    const raw = [{
+      ...makeEntry('Dragonite', 'Dragon', 'Flying'),
+      quickMoves: { DRAGON_BREATH_FAST: makeMove('Dragon', 'Dragon Breath', { energy: 8 }) },
+      eliteQuickMoves: [],
+      cinematicMoves: { AERIAL_ACE: makeMove('Flying', 'Aerial Ace', { power: 55, energy: -33 }) },
+      eliteCinematicMoves: [],
+    }];
+    const { quickMoves, chargedMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(chargedMoves.filter((m) => m.isRecommended)).toHaveLength(1);
+    expect(quickMoves[0].isRecommended).toBe(true);
+    expect(chargedMoves[0].isRecommended).toBe(true);
+  });
+
+  it('AC-04: per role, the quick move with the highest energy for that type is recommended', () => {
+    // Rock/Dark: two Rock quick moves (Rock Smash energy=15 > Rock Throw energy=8)
+    const raw = [{
+      ...makeEntry('RockDark', 'Rock', 'Dark'),
+      quickMoves: {
+        ROCK_THROW_FAST: makeMove('Rock', 'Rock Throw', { energy: 8  }),
+        ROCK_SMASH_FAST: makeMove('Rock', 'Rock Smash', { energy: 15 }),
+        BITE_FAST:       makeMove('Dark', 'Bite',       { energy: 4  }),
+      },
+      eliteQuickMoves: {},
+      cinematicMoves: {
+        STONE_EDGE: makeMove('Rock', 'Stone Edge', { power: 100, energy: -100 }),
+        CRUNCH:     makeMove('Dark', 'Crunch',     { power: 65,  energy: -33  }),
+      },
+      eliteCinematicMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Rock Smash')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Rock Throw')?.isRecommended).toBe(false);
+    expect(quickMoves.find((m) => m.name === 'Bite')?.isRecommended).toBe(true);
+  });
+
+  it('AC-05: no two recommended Quick moves on a multi-role Pokémon share the same typeId', () => {
+    const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+    const ttар = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+    const recTypes = ttар.quickMoves.filter((m) => m.isRecommended).map((m) => m.typeId);
+    expect(new Set(recTypes).size).toBe(recTypes.length);
+    expect(recTypes.length).toBe(2);
+  });
+
+  it('AC-07: survivability feasibility applies within a role — fragile Pokémon prefers lower-cost same-type charged move', () => {
+    // Rock/Dark, fragile (defense=30, stamina=30 → sum=60).
+    // Fillers: defense=150, stamina=200 → sum=350.
+    // mean=(350*3+60)/4=277.5, threshold=277.5*0.65=180.375 → sum=60 ≤ 180.375 → fragile.
+    // Rock role: Stone Edge (cost 100) vs Rock Slide (cost 33) → Rock Slide wins on Factor 1.
+    const fragileRockDark = makeEntry('FragileRock', 'Rock', 'Dark', { attack: 100, defense: 30, stamina: 30 });
+    const raw = [
+      makeNormalAtkEntry('F1'),
+      makeNormalAtkEntry('F2'),
+      makeNormalAtkEntry('F3'),
+      {
+        ...fragileRockDark,
+        quickMoves: {
+          ROCK_THROW_FAST: makeMove('Rock', 'Rock Throw', { energy: 8 }),
+          BITE_FAST:       makeMove('Dark', 'Bite',       { energy: 4 }),
+        },
+        eliteQuickMoves: [],
+        cinematicMoves: {
+          STONE_EDGE: makeMove('Rock', 'Stone Edge', { power: 105, energy: -100 }),
+          ROCK_SLIDE: makeMove('Rock', 'Rock Slide', { power: 80,  energy: -33  }),
+          CRUNCH:     makeMove('Dark', 'Crunch',     { power: 65,  energy: -33  }),
+        },
+        eliteCinematicMoves: [],
+      },
+    ];
+    const { chargedMoves } = parsePokemonData(raw).entries.find((e) => e.name === 'FragileRock')!;
+    expect(chargedMoves.find((m) => m.name === 'Rock Slide')?.isRecommended).toBe(true);
+    expect(chargedMoves.find((m) => m.name === 'Stone Edge')?.isRecommended).toBe(false);
+    expect(chargedMoves.find((m) => m.name === 'Crunch')?.isRecommended).toBe(true);
+  });
+
+  it('AC-08: no two recommended Charged moves on a multi-role Pokémon share the same typeId', () => {
+    const raw = buildMultiRoleDataset(TYRANITAR_LIKE);
+    const ttар = parsePokemonData(raw).entries.find((e) => e.name === 'Tyranitar')!;
+    const recTypes = ttар.chargedMoves.filter((m) => m.isRecommended).map((m) => m.typeId);
+    expect(new Set(recTypes).size).toBe(recTypes.length);
+    expect(recTypes.length).toBe(2);
+  });
+
+  it('AC-09: single-role restricts pool — STAB type move recommended even when non-STAB has higher energy', () => {
+    // Bug Pokémon with viable Bug role (Infestation quick + Bug Buzz charged).
+    // Confusion (Psychic, energy=15) would win under spec 0016 full-pool: 10*1.2=12 < 15.
+    // Under spec 0017 per-role, only Bug quick moves are in the role pool → Infestation wins.
+    const raw = [{
+      ...makeEntry('Caterpie', 'Bug'),
+      quickMoves: {
+        INFESTATION_FAST: makeMove('Bug',     'Infestation', { energy: 10 }),
+        CONFUSION_FAST:   makeMove('Psychic', 'Confusion',   { energy: 15 }),
+      },
+      eliteQuickMoves: [],
+      cinematicMoves: { BUG_BUZZ: makeMove('Bug', 'Bug Buzz', { power: 100, energy: -50 }) },
+      eliteCinematicMoves: [],
+    }];
+    const { quickMoves } = parsePokemonData(raw).entries[0];
+    expect(quickMoves.find((m) => m.name === 'Infestation')?.isRecommended).toBe(true);
+    expect(quickMoves.find((m) => m.name === 'Confusion')?.isRecommended).toBe(false);
+  });
+});
+
 describe('parsePokemonData - count and errors', () => {
   it('returns the count of entries in the array', () => {
     const raw = [{ id: 'BULBASAUR' }, { id: 'IVYSAUR' }, { id: 'VENUSAUR' }];
