@@ -1391,6 +1391,42 @@ describe('parsePokemonData - spec 0018 role-based PvE tiers', () => {
   });
 });
 
+describe('parsePokemonData - spec 0019 role-anchored move recommendations (live dataset)', () => {
+  let liveCatalog: ReturnType<typeof parsePokemonData>;
+  beforeAll(() => {
+    liveCatalog = parsePokemonData(pokemonData);
+  });
+
+  it('AC-20: Tyranitar has Rock as primary attacker role and Dark as secondary, in that order', () => {
+    const ttar = liveCatalog.entries.find((e) => e.name === 'Tyranitar')!;
+    expect(ttar).toBeDefined();
+    expect(ttar.attackerRoles).toHaveLength(2);
+    expect(ttar.attackerRoles[0].typeId).toBe('Rock');
+    expect(ttar.attackerRoles[1].typeId).toBe('Dark');
+  });
+
+  it('AC-21: every multi-role Pokémon has exactly one recommended Quick and one recommended Charged move per role', () => {
+    const multiRole = liveCatalog.entries.filter((e) => e.attackerRoles.length >= 2);
+    expect(multiRole.length).toBeGreaterThan(0);
+    for (const entry of multiRole) {
+      for (const role of entry.attackerRoles) {
+        const recQuick   = entry.quickMoves.filter((m) => m.isRecommended && m.typeId === role.typeId);
+        const recCharged = entry.chargedMoves.filter((m) => m.isRecommended && m.typeId === role.typeId);
+        expect(recQuick).toHaveLength(1);
+        expect(recCharged).toHaveLength(1);
+      }
+    }
+  });
+
+  it('AC-22: every single-role and fallback Pokémon has at most one recommended Quick and one recommended Charged move', () => {
+    const singleOrFallback = liveCatalog.entries.filter((e) => e.attackerRoles.length <= 1);
+    for (const entry of singleOrFallback) {
+      expect(entry.quickMoves.filter((m) => m.isRecommended).length).toBeLessThanOrEqual(1);
+      expect(entry.chargedMoves.filter((m) => m.isRecommended).length).toBeLessThanOrEqual(1);
+    }
+  });
+});
+
 describe('parsePokemonData - count and errors', () => {
   it('returns the count of entries in the array', () => {
     const raw = [{ id: 'BULBASAUR' }, { id: 'IVYSAUR' }, { id: 'VENUSAUR' }];

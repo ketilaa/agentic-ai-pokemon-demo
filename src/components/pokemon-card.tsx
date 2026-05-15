@@ -64,6 +64,34 @@ function StrengthProfile({ stats, maxima }: { stats: PokemonStats; maxima: StatM
   );
 }
 
+function MoveItem({ move }: { move: MoveEntry }) {
+  const color = TYPE_COLORS[move.typeId] ?? '#888888';
+  return (
+    <Box
+      component="span"
+      data-testid="move-item"
+      data-move-name={move.name}
+      data-move-type={move.typeId}
+      data-is-elite={String(move.isElite)}
+      data-is-recommended={String(move.isRecommended)}
+      sx={{
+        display: 'inline-block',
+        px: 0.75,
+        py: 0.25,
+        borderRadius: 1,
+        bgcolor: alpha(color, 0.15),
+        fontSize: '0.7rem',
+        fontStyle: move.isElite ? 'italic' : 'normal',
+        fontWeight: move.isRecommended ? 700 : 400,
+        pointerEvents: 'none',
+        userSelect: 'none',
+      }}
+    >
+      {move.name}
+    </Box>
+  );
+}
+
 function MoveGroup({
   moves,
   groupTestId,
@@ -86,36 +114,50 @@ function MoveGroup({
         {label}
       </Typography>
       <Box data-testid={groupTestId} sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
-        {moves.map((move) => {
-          const color = TYPE_COLORS[move.typeId] ?? '#888888';
-          return (
-            <Box
-              key={move.name}
-              component="span"
-              data-testid="move-item"
-              data-move-name={move.name}
-              data-move-type={move.typeId}
-              data-is-elite={String(move.isElite)}
-              data-is-recommended={String(move.isRecommended)}
-              sx={{
-                display: 'inline-block',
-                px: 0.75,
-                py: 0.25,
-                borderRadius: 1,
-                bgcolor: alpha(color, 0.15),
-                fontSize: '0.7rem',
-                fontStyle: move.isElite ? 'italic' : 'normal',
-                fontWeight: move.isRecommended ? 700 : 400,
-                pointerEvents: 'none',
-                userSelect: 'none',
-              }}
-            >
-              {move.name}
-            </Box>
-          );
-        })}
+        {moves.map((move) => <MoveItem key={move.name} move={move} />)}
       </Box>
     </>
+  );
+}
+
+function RoleMovesetSection({
+  attackerRoles,
+  quickMoves,
+  chargedMoves,
+}: {
+  attackerRoles: readonly AttackerRoleTier[];
+  quickMoves: readonly MoveEntry[];
+  chargedMoves: readonly MoveEntry[];
+}) {
+  const groups = attackerRoles.flatMap((role) => {
+    const quick = quickMoves.find((m) => m.isRecommended && m.typeId === role.typeId) ?? null;
+    const charged = chargedMoves.find((m) => m.isRecommended && m.typeId === role.typeId) ?? null;
+    if (quick === null && charged === null) return [];
+    return [{ typeId: role.typeId, quick, charged }];
+  });
+  if (groups.length === 0) return null;
+  return (
+    <Box data-testid="role-moveset-section" sx={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+      {groups.map(({ typeId, quick, charged }) => (
+        <Box
+          key={typeId}
+          data-testid="role-moveset-group"
+          data-role-type={typeId}
+          sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
+        >
+          <Typography
+            variant="caption"
+            sx={{ color: 'text.secondary', fontSize: '0.6rem', lineHeight: 1, fontWeight: 500 }}
+          >
+            {typeId} attacker
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 0.5 }}>
+            {quick && <MoveItem move={quick} />}
+            {charged && <MoveItem move={charged} />}
+          </Box>
+        </Box>
+      ))}
+    </Box>
   );
 }
 
@@ -185,21 +227,33 @@ function RoleTierSection({
 function MoveSection({
   quickMoves,
   chargedMoves,
+  attackerRoles,
 }: {
   quickMoves: readonly MoveEntry[];
   chargedMoves: readonly MoveEntry[];
+  attackerRoles: readonly AttackerRoleTier[];
 }) {
   if (quickMoves.length === 0 && chargedMoves.length === 0) return null;
+  const isMultiRole = attackerRoles.length >= 2;
+  const displayedQuickMoves = isMultiRole ? quickMoves.filter((m) => !m.isRecommended) : quickMoves;
+  const displayedChargedMoves = isMultiRole ? chargedMoves.filter((m) => !m.isRecommended) : chargedMoves;
   return (
     <Box data-testid="move-section" sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+      {isMultiRole && (
+        <RoleMovesetSection
+          attackerRoles={attackerRoles}
+          quickMoves={quickMoves}
+          chargedMoves={chargedMoves}
+        />
+      )}
       <MoveGroup
-        moves={quickMoves}
+        moves={displayedQuickMoves}
         groupTestId="quick-moves-group"
         labelTestId="quick-moves-label"
         label="Quick moves"
       />
       <MoveGroup
-        moves={chargedMoves}
+        moves={displayedChargedMoves}
         groupTestId="charged-moves-group"
         labelTestId="charged-moves-label"
         label="Charged moves"
@@ -274,7 +328,7 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
       <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
         <RoleTierSection attackerRoles={attackerRoles} defenderTier={defenderTier} />
-        <MoveSection quickMoves={quickMoves} chargedMoves={chargedMoves} />
+        <MoveSection quickMoves={quickMoves} chargedMoves={chargedMoves} attackerRoles={attackerRoles} />
         {(evolvesFrom !== null || evolvesTo.length > 0) && (
           <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>
             {evolvesFrom !== null && (
