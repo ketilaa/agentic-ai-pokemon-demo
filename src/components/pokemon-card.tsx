@@ -70,17 +70,18 @@ function MoveItem({ move }: { move: MoveEntry }) {
     <Box
       component="span"
       data-testid="move-item"
+      data-min-height="36"
       data-move-name={move.name}
       data-move-type={move.typeId}
       data-is-elite={String(move.isElite)}
       data-is-recommended={String(move.isRecommended)}
       sx={{
         display: 'inline-block',
-        px: 0.75,
-        py: 0.25,
+        px: 1.25,
+        py: 1.25,
         borderRadius: 1,
         bgcolor: alpha(color, 0.15),
-        fontSize: '0.7rem',
+        fontSize: '0.75rem',
         fontStyle: move.isElite ? 'italic' : 'normal',
         fontWeight: move.isRecommended ? 700 : 400,
         pointerEvents: 'none',
@@ -109,7 +110,7 @@ function MoveGroup({
       <Typography
         data-testid={labelTestId}
         variant="caption"
-        sx={{ color: 'text.secondary', lineHeight: 1, fontSize: '0.6rem' }}
+        sx={{ color: 'text.secondary', lineHeight: 1, fontSize: '0.7rem' }}
       >
         {label}
       </Typography>
@@ -134,7 +135,7 @@ function PveRolesSection({
   return (
     <Box
       data-testid="pve-roles-section"
-      sx={{ mt: 1, mb: 0.25, display: 'flex', flexDirection: 'column', gap: 0.75 }}
+      sx={{ mt: 2, display: 'flex', flexDirection: 'column', gap: 1.5 }}
     >
       {attackerRoles.map((role) => {
         const color = TYPE_COLORS[role.typeId] ?? '#888888';
@@ -147,26 +148,28 @@ function PveRolesSection({
             data-role="attacker"
             data-role-type={role.typeId}
             data-tier={role.tier}
-            sx={{ display: 'flex', flexDirection: 'column', gap: 0.5 }}
+            sx={{ display: 'flex', flexDirection: 'column', gap: 0.75 }}
           >
             <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
               <Typography
                 variant="caption"
-                sx={{ color: 'text.secondary', fontSize: '0.6rem', lineHeight: 1, fontWeight: 500 }}
+                sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1, fontWeight: 500 }}
               >
                 {role.typeId} attacker
               </Typography>
               <Box
                 component="span"
+                data-testid="tier-badge"
+                data-badge-size="20"
                 sx={{
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  width: 16,
-                  height: 16,
-                  borderRadius: '3px',
+                  width: 20,
+                  height: 20,
+                  borderRadius: '4px',
                   bgcolor: alpha(color, 0.8),
-                  fontSize: '0.55rem',
+                  fontSize: '0.65rem',
                   fontWeight: 700,
                   color: '#fff',
                   lineHeight: 1,
@@ -192,21 +195,23 @@ function PveRolesSection({
       >
         <Typography
           variant="caption"
-          sx={{ color: 'text.secondary', fontSize: '0.6rem', lineHeight: 1, fontWeight: 500 }}
+          sx={{ color: 'text.secondary', fontSize: '0.75rem', lineHeight: 1, fontWeight: 500 }}
         >
           Defender
         </Typography>
         <Box
           component="span"
+          data-testid="tier-badge"
+          data-badge-size="20"
           sx={{
             display: 'inline-flex',
             alignItems: 'center',
             justifyContent: 'center',
-            width: 16,
-            height: 16,
-            borderRadius: '3px',
+            width: 20,
+            height: 20,
+            borderRadius: '4px',
             bgcolor: 'rgba(90,90,90,0.45)',
-            fontSize: '0.55rem',
+            fontSize: '0.65rem',
             fontWeight: 700,
             color: '#fff',
             lineHeight: 1,
@@ -233,7 +238,7 @@ function MoveSection({
   const displayedQuickMoves = hasRoles ? quickMoves.filter((m) => !m.isRecommended) : quickMoves;
   const displayedChargedMoves = hasRoles ? chargedMoves.filter((m) => !m.isRecommended) : chargedMoves;
   return (
-    <Box data-testid="move-section" sx={{ mt: 1.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
+    <Box data-testid="move-section" sx={{ mt: 2.5, display: 'flex', flexDirection: 'column', gap: 0.5 }}>
       <MoveGroup
         moves={displayedQuickMoves}
         groupTestId="quick-moves-group"
@@ -313,12 +318,12 @@ export function PokemonCard({ name, primaryType, secondaryType, stats, statMaxim
           />
         )}
       </Box>
-      <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 1.5 }}>
+      <Box data-testid="card-content-section" data-content-tint-opacity={0} sx={{ px: 2, py: 2 }}>
         <StrengthProfile stats={stats} maxima={statMaxima} />
         <PveRolesSection attackerRoles={attackerRoles} defenderTier={defenderTier} quickMoves={quickMoves} chargedMoves={chargedMoves} />
         <MoveSection quickMoves={quickMoves} chargedMoves={chargedMoves} attackerRoles={attackerRoles} />
         {(evolvesFrom !== null || evolvesTo.length > 0) && (
-          <Box data-testid="evolution-section" sx={{ mt: 1.5 }}>
+          <Box data-testid="evolution-section" sx={{ mt: 2.5 }}>
             {evolvesFrom !== null && (
               <Box data-testid="evolves-from-section" sx={{ mb: evolvesTo.length > 0 ? 1 : 0 }}>
                 <Typography variant="caption" sx={{ color: 'text.secondary', display: 'block', mb: 0.5 }}>
