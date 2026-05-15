@@ -1,6 +1,6 @@
 # Spec 0018 – Pokémon Card Role-Based PvE Tiers
 
-**Status:** Ready for implementation  
+**Status:** Complete  
 **Iteration:** 18  
 **Author:** Architect agent  
 **Date:** 2026-05-15
