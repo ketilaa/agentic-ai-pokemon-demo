@@ -1,6 +1,6 @@
 # Spec 0016 – Pokémon Card Move STAB and Role-Identity Recommendation Refinement
 
-**Status:** Revised  
+**Status:** Complete  
 **Iteration:** 16  
 **Author:** Architect agent  
 **Date:** 2026-05-15
